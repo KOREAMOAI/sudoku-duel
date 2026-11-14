@@ -118,6 +118,7 @@ const AC_ON = process.env.ANTICHEAT !== 'off', STRIKES_TO_BAN = 2, ADMIN_KEY = p
 const moveLog = new Map(); // nick -> 최근 입력 시각들
 const reqLog = new Map();  // nick -> 최근 1초 요청 시각들
 const signupLog = new Map(); // ip -> 가입 시각들
+const seen = new Map();      // nick -> 마지막 접속 시각 (로비 접속자 표시용)
 const userOf = (nick) => accounts.users[String(nick).toLowerCase()];
 const isBanned = (nick) => { const u = userOf(nick); return !!(u && u.banned); };
 function clientIp(req) { return String((req.headers['x-forwarded-for'] || req.socket.remoteAddress || '')).split(',')[0].trim(); }
@@ -172,7 +173,7 @@ function rateLimit(key) {
   const a = (reqLog.get(key) || []).filter((t) => now - t < 1000); a.push(now); reqLog.set(key, a);
   return a.length <= 10;
 }
-setInterval(() => { const now = Date.now(); for (const [k, a] of moveLog) if (!a.length || now - a[a.length - 1] > 120000) moveLog.delete(k); for (const [k, a] of reqLog) if (!a.length || now - a[a.length - 1] > 5000) reqLog.delete(k); for (const [k, a] of signupLog) if (!a.some((t) => now - t < 86400000)) signupLog.delete(k); }, 60000).unref();
+setInterval(() => { const now = Date.now(); for (const [k, a] of moveLog) if (!a.length || now - a[a.length - 1] > 120000) moveLog.delete(k); for (const [k, a] of reqLog) if (!a.length || now - a[a.length - 1] > 5000) reqLog.delete(k); for (const [k, t] of seen) if (now - t > 300000) seen.delete(k); for (const [k, a] of signupLog) if (!a.some((t) => now - t < 86400000)) signupLog.delete(k); }, 60000).unref();
 
 /* ---------- 코인/상점 ---------- */
 const WELCOME_COINS = 100, MATCH_FEE = 10, MATCH_BONUS = 10, BETS = [0, 50, 100, 200, 500];
@@ -742,8 +743,23 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { ok: true });
       }
       const authNick = nickFromToken(body.token);
+      if (authNick) seen.set(authNick, Date.now());
       if (['create', 'join', 'match'].includes(action) && !authNick) return json(res, 401, { error: '로그인이 필요해요' });
 
+      if (action === 'lobby') {
+        if (!authNick) return json(res, 401, { error: '로그인이 필요해요' });
+        const t = Date.now(), online = new Set();
+        for (const [n, ts] of seen) if (t - ts < 45000) online.add(n);
+        for (const rm of rooms.values()) for (const pl of rm.players) if (pl.connected) online.add(pl.nick);
+        const list = [];
+        for (const rm of rooms.values()) {
+          const host = rm.players[0];
+          if (rm.listed && rm.status === 'waiting' && rm.players.length === 1 && (host.connected || t - rm.updated < 20000))
+            list.push({ code: rm.code, host: host.nick, ...cosm(host.nick), mode: rm.mode, difficulty: rm.difficulty, bet: rm.bet || 0 });
+        }
+        const names = [...online].sort((a, b) => a.localeCompare(b)).slice(0, 24).map((n) => ({ nick: n, ...cosm(n) }));
+        return json(res, 200, { rooms: list.slice(0, 20), online: online.size, names });
+      }
       if (action === 'roominfo') {
         const rm = rooms.get(String(body.code || '').toUpperCase().trim());
         if (!rm) return json(res, 404, { error: '해당 코드의 방이 없어요' });
@@ -787,7 +803,7 @@ const server = http.createServer(async (req, res) => {
         const p = newPlayer(1, nick);
         const bet = BETS.includes(body.bet) ? body.bet : 0;
         if (coinsOf(nick) < bet) return json(res, 400, { error: '코인이 부족해요 (판돈 ' + bet + ')' });
-        rooms.set(code, { code, difficulty, mode, bet, players: [p], status: 'waiting', updated: Date.now(), last: { seq: 0 } });
+        rooms.set(code, { code, difficulty, mode, bet, listed: !!body.listed, players: [p], status: 'waiting', updated: Date.now(), last: { seq: 0 } });
         return json(res, 200, { code, pid: p.id });
       }
       if (action === 'join') {
