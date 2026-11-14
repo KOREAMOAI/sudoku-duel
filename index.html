@@ -7,7 +7,7 @@
 <style>
 :root{--bg:#fff;--ink:#344861;--mute:#6e7c91;--line:#bec6d4;--blue:#325aaf;--user:#0072e3;
 --sel:#bbdefb;--rel:#e2ebf3;--same:#c3d7ea;--bad:#e55c6c;--bad-bg:#f7cfd6;
---me:#0072e3;--me-bg:#dbeafe;--op:#e11d48;--op-bg:#ffe4e6;--card:#f5f7fa}
+--me:#0072e3;--me-bg:#dbeafe;--op:#111827;--op-bg:#e5e7eb;--card:#f5f7fa}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:Pretendard,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;min-height:100vh;display:flex;justify-content:center}
 .wrap{width:100%;max-width:520px;padding:18px 14px 40px}
@@ -61,9 +61,10 @@ th{color:var(--mute);font-weight:500;font-size:12px}td.n{text-align:left}
 .c.given{color:var(--ink);font-weight:500}
 .c.bad{color:var(--bad);background:var(--bad-bg)}
 .c.mine{background:var(--me-bg);color:var(--me);font-weight:600}
-.c.theirs{background:var(--op-bg);color:var(--op);font-weight:600}
+.c.theirs{background:#eceff3;color:#000;font-weight:700}
 .c.sel{background:var(--sel)}
-.c.opcur{box-shadow:inset 0 0 0 2px var(--op);z-index:1}
+.c.opcur{box-shadow:inset 0 0 0 3px #000;z-index:2}
+.c.opcur::after{content:'';position:absolute;top:2px;right:2px;width:8px;height:8px;border-radius:50%;background:#000}
 .c.pop{animation:pop .3s}
 .c.shake{animation:shake .3s}
 .nt{display:grid;grid-template-columns:repeat(3,1fr);width:100%;height:100%;font-size:clamp(8px,2.4vw,12px);color:var(--mute);font-weight:500}
@@ -95,6 +96,8 @@ th{color:var(--mute);font-weight:500;font-size:12px}td.n{text-align:left}
 .banner{background:#fef3c7;color:#92400e;border-radius:10px;padding:8px 12px;font-size:13px;margin-bottom:10px;text-align:center}
 .hide{display:none!important}
 .solo .pc.op{display:none}
+.legend{display:flex;gap:12px;align-items:center;justify-content:center;font-size:12px;color:var(--mute);margin:0 0 8px}
+.legend i{display:inline-block;width:14px;height:14px;border:2px solid;border-radius:3px;margin-right:4px;vertical-align:-3px}
 </style>
 </head>
 <body>
@@ -183,6 +186,7 @@ th{color:var(--mute);font-weight:500;font-size:12px}td.n{text-align:left}
     <div class="pc me"><div class="nm" id="mn"></div><div class="sc" id="ms">0</div><div class="bar"><i id="mbar"></i></div><div class="hp" id="mh"></div><div class="fz" id="mf"></div></div>
     <div class="pc op"><div class="nm" id="on">상대 대기</div><div class="sc" id="os">0</div><div class="bar"><i id="obar"></i></div><div class="hp" id="oh"></div><div class="fz" id="of"></div></div>
   </div>
+  <div class="legend hide" id="legend"><i style="background:var(--me-bg);border-color:var(--me)"></i>내 칸 <i style="background:#eceff3;border-color:#000"></i>상대 칸 <i style="background:#fff;border:3px solid #000"></i>상대가 보는 칸</div>
   <div class="boardbox">
     <div class="board" id="board"></div>
     <div class="frz hide" id="frz"></div>
@@ -543,6 +547,7 @@ function render() {
     $('#mh').textContent = hearts(me.lives); $('#oh').textContent = op ? hearts(op.lives) : '';
   }
   $('#ctlRace').classList.toggle('hide', !race);
+  $('#legend').classList.toggle('hide', S.mode !== 'territory');
   $('#item').classList.toggle('hide', race);
   document.querySelectorAll('.bar').forEach((b) => b.classList.toggle('hide', !race));
 
