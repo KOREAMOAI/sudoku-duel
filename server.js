@@ -126,7 +126,10 @@ function banAccount(nick, reason) {
   const u = userOf(nick); if (!u || u.banned) return;
   u.banned = { at: Date.now(), reason };
   for (const k of Object.keys(accounts.sessions)) if (accounts.sessions[k].nick.toLowerCase() === u.nick.toLowerCase()) delete accounts.sessions[k];
-  solos.delete(u.nick);
+  solos.delete(u.nick); seen.delete(u.nick);
+  for (const [code, room] of rooms) {
+    if (room.status === 'waiting' && room.players.length === 1 && room.players[0].nick === u.nick) rooms.delete(code);
+  }
   for (const room of rooms.values()) {
     const p = room.players.find((x) => x.nick === u.nick);
     if (p && (room.status === 'playing' || room.status === 'countdown')) {
@@ -182,28 +185,28 @@ const SHOP = {
   theme: {
     light: { name: '기본 (라이트)', price: 0, base: 'light', vars: {} },
     dark: { name: '다크', price: 0, base: 'dark', vars: {} },
-    ocean: { name: '바다', price: 150, base: 'light', vars: { '--bg': '#f0f9ff', '--edge': '#bae6fd', '--ink': '#0c4a6e', '--mute': '#5b8aa5', '--line': '#9cc7de', '--blue': '#0284c7', '--user': '#0369a1', '--sel': '#7dd3fc', '--rel': '#e0f2fe', '--same': '#bae6fd', '--me': '#0284c7', '--me-bg': '#cdeeff', '--card': '#e6f4fb' } },
-    forest: { name: '숲', price: 150, base: 'light', vars: { '--bg': '#f3f8f1', '--edge': '#cfe3c8', '--ink': '#2b4a2f', '--mute': '#6b8a6e', '--line': '#b4cdb0', '--blue': '#2f7d3a', '--user': '#2e7d32', '--sel': '#b7e1b0', '--rel': '#e5f1e1', '--same': '#cfe8c9', '--me': '#2e7d32', '--me-bg': '#d4efcf', '--card': '#ecf4ea' } },
-    sunset: { name: '노을', price: 200, base: 'light', vars: { '--bg': '#fff7ed', '--edge': '#fed7aa', '--ink': '#7c2d12', '--mute': '#a8694d', '--line': '#e8c3a5', '--blue': '#ea580c', '--user': '#c2410c', '--sel': '#fdba74', '--rel': '#ffedd5', '--same': '#fed7aa', '--me': '#ea580c', '--me-bg': '#ffe0c2', '--card': '#fff1e2' } },
-    sakura: { name: '벚꽃', price: 250, base: 'light', vars: { '--bg': '#fff5f8', '--edge': '#fbcfe8', '--ink': '#831843', '--mute': '#b0668a', '--line': '#ebbad1', '--blue': '#db2777', '--user': '#be185d', '--sel': '#f9a8d4', '--rel': '#fce7f3', '--same': '#fbcfe8', '--me': '#db2777', '--me-bg': '#fbd5e8', '--card': '#fdeaf3' } },
-    retro: { name: '레트로 터미널', price: 300, base: 'dark', vars: { '--bg': '#0a1a0a', '--paper': '#0f240f', '--edge': '#1d4a1d', '--ink': '#8ef08e', '--mute': '#5fae5f', '--line': '#2c6a2c', '--blue': '#22c55e', '--user': '#4ade80', '--sel': '#1f5a1f', '--rel': '#123312', '--same': '#1b4d1b', '--bad': '#ff6b6b', '--bad-bg': '#4a1f1f', '--me': '#4ade80', '--me-bg': '#164016', '--op': '#d1fae5', '--op-bg': '#1c3a1c', '--card': '#122a12', '--theirs-bg': '#2a4d2a', '--theirs-ink': '#eaffea', '--opcur': '#eaffea' } },
-    neon: { name: '심야 네온', price: 400, base: 'dark', vars: { '--bg': '#0b0620', '--paper': '#150d33', '--edge': '#3a2a7a', '--ink': '#e9e1ff', '--mute': '#9d8fd6', '--line': '#4a3a8f', '--blue': '#a855f7', '--user': '#22d3ee', '--sel': '#3b2a86', '--rel': '#1b1245', '--same': '#33257a', '--bad': '#ff4d8d', '--bad-bg': '#4a1233', '--me': '#22d3ee', '--me-bg': '#0f3a4d', '--op': '#f0abfc', '--op-bg': '#3a1a52', '--card': '#1d1342', '--theirs-bg': '#4a2a7a', '--theirs-ink': '#ffffff', '--opcur': '#f0abfc' } },
+    ocean: { name: '바다', price: 380, base: 'light', vars: { '--bg': '#f0f9ff', '--edge': '#bae6fd', '--ink': '#0c4a6e', '--mute': '#5b8aa5', '--line': '#9cc7de', '--blue': '#0284c7', '--user': '#0369a1', '--sel': '#7dd3fc', '--rel': '#e0f2fe', '--same': '#bae6fd', '--me': '#0284c7', '--me-bg': '#cdeeff', '--card': '#e6f4fb' } },
+    forest: { name: '숲', price: 380, base: 'light', vars: { '--bg': '#f3f8f1', '--edge': '#cfe3c8', '--ink': '#2b4a2f', '--mute': '#6b8a6e', '--line': '#b4cdb0', '--blue': '#2f7d3a', '--user': '#2e7d32', '--sel': '#b7e1b0', '--rel': '#e5f1e1', '--same': '#cfe8c9', '--me': '#2e7d32', '--me-bg': '#d4efcf', '--card': '#ecf4ea' } },
+    sunset: { name: '노을', price: 500, base: 'light', vars: { '--bg': '#fff7ed', '--edge': '#fed7aa', '--ink': '#7c2d12', '--mute': '#a8694d', '--line': '#e8c3a5', '--blue': '#ea580c', '--user': '#c2410c', '--sel': '#fdba74', '--rel': '#ffedd5', '--same': '#fed7aa', '--me': '#ea580c', '--me-bg': '#ffe0c2', '--card': '#fff1e2' } },
+    sakura: { name: '벚꽃', price: 620, base: 'light', vars: { '--bg': '#fff5f8', '--edge': '#fbcfe8', '--ink': '#831843', '--mute': '#b0668a', '--line': '#ebbad1', '--blue': '#db2777', '--user': '#be185d', '--sel': '#f9a8d4', '--rel': '#fce7f3', '--same': '#fbcfe8', '--me': '#db2777', '--me-bg': '#fbd5e8', '--card': '#fdeaf3' } },
+    retro: { name: '레트로 터미널', price: 750, base: 'dark', vars: { '--bg': '#0a1a0a', '--paper': '#0f240f', '--edge': '#1d4a1d', '--ink': '#8ef08e', '--mute': '#5fae5f', '--line': '#2c6a2c', '--blue': '#22c55e', '--user': '#4ade80', '--sel': '#1f5a1f', '--rel': '#123312', '--same': '#1b4d1b', '--bad': '#ff6b6b', '--bad-bg': '#4a1f1f', '--me': '#4ade80', '--me-bg': '#164016', '--op': '#d1fae5', '--op-bg': '#1c3a1c', '--card': '#122a12', '--theirs-bg': '#2a4d2a', '--theirs-ink': '#eaffea', '--opcur': '#eaffea' } },
+    neon: { name: '심야 네온', price: 1000, base: 'dark', vars: { '--bg': '#0b0620', '--paper': '#150d33', '--edge': '#3a2a7a', '--ink': '#e9e1ff', '--mute': '#9d8fd6', '--line': '#4a3a8f', '--blue': '#a855f7', '--user': '#22d3ee', '--sel': '#3b2a86', '--rel': '#1b1245', '--same': '#33257a', '--bad': '#ff4d8d', '--bad-bg': '#4a1233', '--me': '#22d3ee', '--me-bg': '#0f3a4d', '--op': '#f0abfc', '--op-bg': '#3a1a52', '--card': '#1d1342', '--theirs-bg': '#4a2a7a', '--theirs-ink': '#ffffff', '--opcur': '#f0abfc' } },
   },
   color: {
-    red: { name: '빨강', price: 60, css: '#e11d48' }, blue: { name: '파랑', price: 60, css: '#2563eb' },
-    green: { name: '초록', price: 60, css: '#16a34a' }, purple: { name: '보라', price: 80, css: '#9333ea' },
-    pink: { name: '핑크', price: 80, css: '#ec4899' }, gold: { name: '황금', price: 150, css: '#d4a017' },
-    rainbow: { name: '무지개', price: 300, css: 'rainbow' },
+    red: { name: '빨강', price: 150, css: '#e11d48' }, blue: { name: '파랑', price: 150, css: '#2563eb' },
+    green: { name: '초록', price: 150, css: '#16a34a' }, purple: { name: '보라', price: 200, css: '#9333ea' },
+    pink: { name: '핑크', price: 200, css: '#ec4899' }, gold: { name: '황금', price: 380, css: '#d4a017' },
+    rainbow: { name: '무지개', price: 750, css: 'rainbow' },
   },
   title: {
-    newbie: { name: '🌱 새싹', price: 30 }, turtle: { name: '🐢 느긋한 고수', price: 80 },
-    smart: { name: '🧠 두뇌파', price: 100 }, sniper: { name: '🎯 정확한 손', price: 120 },
-    flash: { name: '⚡ 번개손', price: 150 }, fire: { name: '🔥 불꽃', price: 200 }, king: { name: '👑 스도쿠 왕', price: 500 },
+    newbie: { name: '🌱 새싹', price: 80 }, turtle: { name: '🐢 느긋한 고수', price: 200 },
+    smart: { name: '🧠 두뇌파', price: 250 }, sniper: { name: '🎯 정확한 손', price: 300 },
+    flash: { name: '⚡ 번개손', price: 380 }, fire: { name: '🔥 불꽃', price: 500 }, king: { name: '👑 스도쿠 왕', price: 1250 },
   },
   effect: {
-    basic: { name: '기본 색종이', price: 0 }, confetti: { name: '풍성한 색종이', price: 100 },
-    stars: { name: '별똥별', price: 150 }, hearts: { name: '하트 비', price: 150 },
-    lightning: { name: '번개', price: 200 }, fireworks: { name: '불꽃놀이', price: 250 }, gold: { name: '황금 비', price: 300 },
+    basic: { name: '기본 색종이', price: 0 }, confetti: { name: '풍성한 색종이', price: 250 },
+    stars: { name: '별똥별', price: 380 }, hearts: { name: '하트 비', price: 380 },
+    lightning: { name: '번개', price: 500 }, fireworks: { name: '불꽃놀이', price: 620 }, gold: { name: '황금 비', price: 750 },
   },
 };
 const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -749,12 +752,12 @@ const server = http.createServer(async (req, res) => {
       if (action === 'lobby') {
         if (!authNick) return json(res, 401, { error: '로그인이 필요해요' });
         const t = Date.now(), online = new Set();
-        for (const [n, ts] of seen) if (t - ts < 45000) online.add(n);
-        for (const rm of rooms.values()) for (const pl of rm.players) if (pl.connected) online.add(pl.nick);
+        for (const [n, ts] of seen) if (t - ts < 45000 && !isBanned(n)) online.add(n);
+        for (const rm of rooms.values()) for (const pl of rm.players) if (pl.connected && !isBanned(pl.nick)) online.add(pl.nick);
         const list = [];
         for (const rm of rooms.values()) {
           const host = rm.players[0];
-          if (rm.listed && rm.status === 'waiting' && rm.players.length === 1 && (host.connected || t - rm.updated < 20000))
+          if (rm.listed && rm.status === 'waiting' && rm.players.length === 1 && !isBanned(host.nick) && (host.connected || t - rm.updated < 20000))
             list.push({ code: rm.code, host: host.nick, ...cosm(host.nick), mode: rm.mode, difficulty: rm.difficulty, bet: rm.bet || 0 });
         }
         const names = [...online].sort((a, b) => a.localeCompare(b)).slice(0, 24).map((n) => ({ nick: n, ...cosm(n) }));
