@@ -40,11 +40,11 @@ function rankingList(mode, diff, by) {
     const u = st(nick);
     if (mode === 'solo') {
       const s = u.solo[DIFFS.includes(diff) ? diff : 'normal'];
-      if (by === 'score') { if (s.bestScore > 0) rows.push({ nick, value: s.bestScore, done: s.done }); }
-      else if (s.bestTime > 0) rows.push({ nick, value: s.bestTime, done: s.done });
+      if (by === 'score') { if (s.bestScore > 0) rows.push({ nick, value: s.bestScore, done: s.done, ...cosm(nick) }); }
+      else if (s.bestTime > 0) rows.push({ nick, value: s.bestTime, done: s.done, ...cosm(nick) });
     } else {
       const r = u[mode === 'territory' ? 'territory' : 'race'];
-      if (r.wins + r.losses > 0) rows.push({ nick, wins: r.wins, losses: r.losses });
+      if (r.wins + r.losses > 0) rows.push({ nick, wins: r.wins, losses: r.losses, ...cosm(nick) });
     }
   }
   if (mode === 'solo') rows.sort((a, b) => (by === 'score' ? b.value - a.value : a.value - b.value) || a.nick.localeCompare(b.nick));
@@ -109,6 +109,110 @@ function login(nick, pw) {
   }
   fails.delete(key);
   return { token: newSession(u.nick), nick: u.nick };
+}
+
+/* ---------- 코인/상점 ---------- */
+const WELCOME_COINS = 100, MATCH_FEE = 10, MATCH_BONUS = 10, BETS = [0, 50, 100, 200, 500];
+const SOLO_REWARD = { easy: 10, normal: 20, hard: 30 }, SOLO_DAILY_CAP = 100;
+const SHOP = {
+  theme: {
+    light: { name: '기본 (라이트)', price: 0, base: 'light', vars: {} },
+    dark: { name: '다크', price: 0, base: 'dark', vars: {} },
+    ocean: { name: '바다', price: 150, base: 'light', vars: { '--bg': '#f0f9ff', '--edge': '#bae6fd', '--ink': '#0c4a6e', '--mute': '#5b8aa5', '--line': '#9cc7de', '--blue': '#0284c7', '--user': '#0369a1', '--sel': '#7dd3fc', '--rel': '#e0f2fe', '--same': '#bae6fd', '--me': '#0284c7', '--me-bg': '#cdeeff', '--card': '#e6f4fb' } },
+    forest: { name: '숲', price: 150, base: 'light', vars: { '--bg': '#f3f8f1', '--edge': '#cfe3c8', '--ink': '#2b4a2f', '--mute': '#6b8a6e', '--line': '#b4cdb0', '--blue': '#2f7d3a', '--user': '#2e7d32', '--sel': '#b7e1b0', '--rel': '#e5f1e1', '--same': '#cfe8c9', '--me': '#2e7d32', '--me-bg': '#d4efcf', '--card': '#ecf4ea' } },
+    sunset: { name: '노을', price: 200, base: 'light', vars: { '--bg': '#fff7ed', '--edge': '#fed7aa', '--ink': '#7c2d12', '--mute': '#a8694d', '--line': '#e8c3a5', '--blue': '#ea580c', '--user': '#c2410c', '--sel': '#fdba74', '--rel': '#ffedd5', '--same': '#fed7aa', '--me': '#ea580c', '--me-bg': '#ffe0c2', '--card': '#fff1e2' } },
+    sakura: { name: '벚꽃', price: 250, base: 'light', vars: { '--bg': '#fff5f8', '--edge': '#fbcfe8', '--ink': '#831843', '--mute': '#b0668a', '--line': '#ebbad1', '--blue': '#db2777', '--user': '#be185d', '--sel': '#f9a8d4', '--rel': '#fce7f3', '--same': '#fbcfe8', '--me': '#db2777', '--me-bg': '#fbd5e8', '--card': '#fdeaf3' } },
+    retro: { name: '레트로 터미널', price: 300, base: 'dark', vars: { '--bg': '#0a1a0a', '--paper': '#0f240f', '--edge': '#1d4a1d', '--ink': '#8ef08e', '--mute': '#5fae5f', '--line': '#2c6a2c', '--blue': '#22c55e', '--user': '#4ade80', '--sel': '#1f5a1f', '--rel': '#123312', '--same': '#1b4d1b', '--bad': '#ff6b6b', '--bad-bg': '#4a1f1f', '--me': '#4ade80', '--me-bg': '#164016', '--op': '#d1fae5', '--op-bg': '#1c3a1c', '--card': '#122a12', '--theirs-bg': '#2a4d2a', '--theirs-ink': '#eaffea', '--opcur': '#eaffea' } },
+    neon: { name: '심야 네온', price: 400, base: 'dark', vars: { '--bg': '#0b0620', '--paper': '#150d33', '--edge': '#3a2a7a', '--ink': '#e9e1ff', '--mute': '#9d8fd6', '--line': '#4a3a8f', '--blue': '#a855f7', '--user': '#22d3ee', '--sel': '#3b2a86', '--rel': '#1b1245', '--same': '#33257a', '--bad': '#ff4d8d', '--bad-bg': '#4a1233', '--me': '#22d3ee', '--me-bg': '#0f3a4d', '--op': '#f0abfc', '--op-bg': '#3a1a52', '--card': '#1d1342', '--theirs-bg': '#4a2a7a', '--theirs-ink': '#ffffff', '--opcur': '#f0abfc' } },
+  },
+  color: {
+    red: { name: '빨강', price: 60, css: '#e11d48' }, blue: { name: '파랑', price: 60, css: '#2563eb' },
+    green: { name: '초록', price: 60, css: '#16a34a' }, purple: { name: '보라', price: 80, css: '#9333ea' },
+    pink: { name: '핑크', price: 80, css: '#ec4899' }, gold: { name: '황금', price: 150, css: '#d4a017' },
+    rainbow: { name: '무지개', price: 300, css: 'rainbow' },
+  },
+  title: {
+    newbie: { name: '🌱 새싹', price: 30 }, turtle: { name: '🐢 느긋한 고수', price: 80 },
+    smart: { name: '🧠 두뇌파', price: 100 }, sniper: { name: '🎯 정확한 손', price: 120 },
+    flash: { name: '⚡ 번개손', price: 150 }, fire: { name: '🔥 불꽃', price: 200 }, king: { name: '👑 스도쿠 왕', price: 500 },
+  },
+  effect: {
+    basic: { name: '기본 색종이', price: 0 }, confetti: { name: '풍성한 색종이', price: 100 },
+    stars: { name: '별똥별', price: 150 }, hearts: { name: '하트 비', price: 150 },
+    lightning: { name: '번개', price: 200 }, fireworks: { name: '불꽃놀이', price: 250 }, gold: { name: '황금 비', price: 300 },
+  },
+};
+const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+const getItem = (kind, id) => (hasOwn(SHOP, kind) && hasOwn(SHOP[kind], String(id)) ? SHOP[kind][String(id)] : null);
+const userOf = (nick) => accounts.users[String(nick).toLowerCase()];
+function eco(nick) {
+  const u = userOf(nick);
+  if (!u) return null;
+  if (!u.eco) {
+    u.eco = {
+      coins: WELCOME_COINS, owned: { theme: [], color: [], effect: [], title: [] },
+      eq: { theme: 'light', color: '', effect: 'basic', title: '' },
+      daily: { last: '', streak: 0, soloDate: '', soloEarned: 0 },
+    };
+  }
+  return u.eco;
+}
+const coinsOf = (nick) => { const e = eco(nick); return e ? e.coins : 0; };
+function addCoins(nick, n) { const e = eco(nick); if (!e) return; e.coins = Math.max(0, e.coins + n); saveAcc(); }
+const kstDay = (off = 0) => new Date(Date.now() + 9 * 3600e3 + off * 864e5).toISOString().slice(0, 10);
+const dailyReward = (streak) => 30 + Math.min(streak - 1, 4) * 10;
+function ownedItem(e, kind, id) { const it = getItem(kind, id); return !!it && (it.price === 0 || e.owned[kind].includes(id)); }
+function cosm(nick) {
+  const e = eco(nick);
+  if (!e) return { color: '', title: '', effect: 'basic' };
+  const c = getItem('color', e.eq.color), t = getItem('title', e.eq.title);
+  return { color: c ? c.css : '', title: t ? t.name : '', effect: getItem('effect', e.eq.effect) ? e.eq.effect : 'basic' };
+}
+function shopState(nick) {
+  const e = eco(nick), day = kstDay();
+  const canClaim = e.daily.last !== day;
+  const nextDay = e.daily.last === kstDay(-1) ? e.daily.streak + 1 : 1;
+  const catalog = {};
+  for (const k of Object.keys(SHOP)) catalog[k] = Object.entries(SHOP[k]).map(([id, it]) => ({ id, ...it, owned: ownedItem(e, k, id) }));
+  const th = getItem('theme', e.eq.theme) || SHOP.theme.light;
+  return {
+    coins: e.coins, eq: e.eq, cosm: cosm(nick), catalog,
+    eqTheme: { id: e.eq.theme, base: th.base, vars: th.vars },
+    daily: { canClaim, reward: dailyReward(nextDay), day: nextDay },
+    soloToday: e.daily.soloDate === day ? e.daily.soloEarned : 0, soloCap: SOLO_DAILY_CAP,
+  };
+}
+function buyItem(nick, kind, id) {
+  const e = eco(nick), it = getItem(kind, id);
+  if (!it) throw new Error('없는 아이템이에요');
+  if (ownedItem(e, kind, id)) throw new Error('이미 가지고 있어요');
+  if (e.coins < it.price) throw new Error('코인이 부족해요');
+  e.coins -= it.price; e.owned[kind].push(String(id)); saveAcc();
+}
+function equipItem(nick, kind, id) {
+  const e = eco(nick);
+  if (!hasOwn(SHOP, kind)) throw new Error('없는 항목이에요');
+  if (id === '' || id == null) {
+    if (kind === 'theme' || kind === 'effect') throw new Error('해제할 수 없는 항목이에요');
+    e.eq[kind] = '';
+  } else {
+    if (!ownedItem(e, kind, String(id))) throw new Error('먼저 구매해 주세요');
+    e.eq[kind] = String(id);
+  }
+  saveAcc();
+}
+function claimDaily(nick) {
+  const e = eco(nick), day = kstDay();
+  if (e.daily.last === day) throw new Error('오늘은 이미 받았어요');
+  const streak = e.daily.last === kstDay(-1) ? e.daily.streak + 1 : 1, amt = dailyReward(streak);
+  e.daily.last = day; e.daily.streak = streak; e.coins += amt; saveAcc();
+  return amt;
+}
+function betCheck(room, extraNick) {
+  if (!(room.bet > 0)) return null;
+  const nicks = room.players.map((p) => p.nick);
+  if (extraNick) nicks.push(extraNick);
+  return nicks.find((n) => coinsOf(n) < room.bet) || null;
 }
 
 /* ---------- 스도쿠 생성 ---------- */
@@ -209,6 +313,11 @@ function unitCells(key) {
 }
 
 function startGame(room) {
+  room.payout = null; room.escrow = 0;
+  if (room.bet > 0) {
+    for (const p of room.players) addCoins(p.nick, -room.bet);
+    room.escrow = room.bet * room.players.length;
+  }
   const { solution, puzzle } = generate(room.difficulty);
   room.solution = solution;
   room.puzzle = puzzle;
@@ -250,6 +359,16 @@ function finish(room, winner, reason) {
     const l = room.players.find((p) => p.idx !== winner);
     if (w && l) { bump(w.nick, room.mode, 'wins'); bump(l.nick, room.mode, 'losses'); saveRanks(); }
   }
+  if (room.escrow) {
+    if (winner) {
+      const w = room.players.find((p) => p.idx === winner), bonus = room.fixed ? MATCH_BONUS : 0;
+      if (w) { addCoins(w.nick, room.escrow + bonus); room.payout = { winner, amount: room.escrow + bonus, bonus }; }
+    } else {
+      room.players.forEach((p) => addCoins(p.nick, room.bet));
+      room.payout = { winner: 0, amount: 0, refund: true };
+    }
+    room.escrow = 0;
+  }
   room.players.forEach((p) => (p.rematch = false));
   broadcast(room);
 }
@@ -266,11 +385,11 @@ function view(room, me) {
     for (let i = 0; i < 81; i++) if (room.puzzle[i] || room.owner[i]) values[i] = room.solution[i];
   }
   return {
-    code: room.code, status: room.status, difficulty: room.difficulty, mode: room.mode, total: room.total || 0,
+    code: room.code, status: room.status, difficulty: room.difficulty, mode: room.mode, total: room.total || 0, bet: room.bet || 0, fixed: !!room.fixed, payout: room.payout || null,
     now, startsAt: room.startsAt || 0, startedAt: room.startedAt || 0, endedAt: room.endedAt || 0,
     you: me.idx,
     players: room.players.map((p) => ({
-      idx: p.idx, nick: p.nick, lives: p.lives, score: race ? p.cells : p.score, cells: p.cells, hints: p.hints || 0,
+      idx: p.idx, nick: p.nick, ...cosm(p.nick), lives: p.lives, score: race ? p.cells : p.score, cells: p.cells, hints: p.hints || 0,
       itemUsed: p.itemUsed, frozenUntil: p.frozenUntil > now ? p.frozenUntil : 0,
       connected: p.connected, rematch: p.rematch, cursor: race || p.idx === me.idx ? -1 : p.cursor,
     })),
@@ -362,7 +481,7 @@ function soloView(g) {
   return {
     mode: 'solo', status: g.status, difficulty: g.difficulty, total: g.total,
     startedAt: g.startedAt, endedAt: g.endedAt, now: Date.now(), startsAt: 0, you: 1, code: '',
-    players: [{ idx: 1, nick: g.nick, lives: LIVES - g.mistakes, score: g.cells, cells: g.cells, hints: g.hints,
+    players: [{ idx: 1, nick: g.nick, ...cosm(g.nick), lives: LIVES - g.mistakes, score: g.cells, cells: g.cells, hints: g.hints,
       itemUsed: false, frozenUntil: 0, connected: true, rematch: false, cursor: -1 }],
     puzzle: g.puzzle, owner: null, values: g.grid.slice(), wrong: g.wrong.map((x) => (x ? 1 : 0)),
     winner: fin ? (g.result.won ? 1 : 2) : null, reason: fin ? (g.result.won ? 'complete' : 'lives') : '',
@@ -380,6 +499,12 @@ function soloFinish(g, won) {
     s.done++; s.totalTime += time;
     if (!g.hints && (!s.bestTime || time < s.bestTime)) { s.bestTime = time; r.newBestTime = true; }
     if (r.score > s.bestScore) { s.bestScore = r.score; r.newBestScore = true; }
+    const e = eco(g.nick), day = kstDay(), full = SOLO_REWARD[g.difficulty];
+    if (e) {
+      if (e.daily.soloDate !== day) { e.daily.soloDate = day; e.daily.soloEarned = 0; }
+      const gain = Math.max(0, Math.min(full, SOLO_DAILY_CAP - e.daily.soloEarned));
+      e.daily.soloEarned += gain; e.coins += gain; r.coins = gain; r.capped = gain < full;
+    }
   } else s.over++;
   g.result = r;
   saveRanks();
@@ -490,6 +615,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       return res.end(fs.readFileSync(path.join(__dirname, 'index.html')));
     }
+    if (req.method === 'GET' && url.pathname === '/favicon.ico') { res.writeHead(204); return res.end(); }
     if (req.method === 'GET' && url.pathname === '/api/ranking') {
       return json(res, 200, rankingList(url.searchParams.get('mode') || 'race', url.searchParams.get('diff') || 'normal', url.searchParams.get('by') || 'time'));
     }
@@ -523,7 +649,7 @@ const server = http.createServer(async (req, res) => {
       }
       if (action === 'me') {
         const nick = nickFromToken(body.token);
-        return nick ? json(res, 200, { nick }) : json(res, 401, { error: '로그인이 필요해요' });
+        return nick ? json(res, 200, { nick, coins: coinsOf(nick) }) : json(res, 401, { error: '로그인이 필요해요' });
       }
       if (action === 'logout') {
         if (body.token) { delete accounts.sessions[sha(String(body.token))]; saveAcc(); }
@@ -532,6 +658,21 @@ const server = http.createServer(async (req, res) => {
       const authNick = nickFromToken(body.token);
       if (['create', 'join', 'match'].includes(action) && !authNick) return json(res, 401, { error: '로그인이 필요해요' });
 
+      if (action === 'roominfo') {
+        const rm = rooms.get(String(body.code || '').toUpperCase().trim());
+        if (!rm) return json(res, 404, { error: '해당 코드의 방이 없어요' });
+        return json(res, 200, { mode: rm.mode, difficulty: rm.difficulty, bet: rm.bet || 0, fixed: !!rm.fixed, host: rm.players[0].nick, full: rm.players.length >= 2 });
+      }
+      if (action === 'shop' || action.startsWith('shop/') || action === 'daily/claim') {
+        if (!authNick) return json(res, 401, { error: '로그인이 필요해요' });
+        try {
+          let claimed = 0;
+          if (action === 'shop/buy') buyItem(authNick, body.kind, body.id);
+          else if (action === 'shop/equip') equipItem(authNick, body.kind, body.id);
+          else if (action === 'daily/claim') claimed = claimDaily(authNick);
+          return json(res, 200, { ...shopState(authNick), claimed });
+        } catch (e) { return json(res, 400, { error: e.message }); }
+      }
       if (action === 'mystats') {
         if (!authNick) return json(res, 401, { error: '로그인이 필요해요' });
         return json(res, 200, st(authNick));
@@ -558,7 +699,9 @@ const server = http.createServer(async (req, res) => {
         const difficulty = GIVENS[body.difficulty] ? body.difficulty : 'normal';
         const code = makeCode();
         const p = newPlayer(1, nick);
-        rooms.set(code, { code, difficulty, mode, players: [p], status: 'waiting', updated: Date.now(), last: { seq: 0 } });
+        const bet = BETS.includes(body.bet) ? body.bet : 0;
+        if (coinsOf(nick) < bet) return json(res, 400, { error: '코인이 부족해요 (판돈 ' + bet + ')' });
+        rooms.set(code, { code, difficulty, mode, bet, players: [p], status: 'waiting', updated: Date.now(), last: { seq: 0 } });
         return json(res, 200, { code, pid: p.id });
       }
       if (action === 'join') {
@@ -567,6 +710,8 @@ const server = http.createServer(async (req, res) => {
         if (!room) return json(res, 404, { error: '해당 코드의 방이 없어요' });
         if (room.players.length >= 2) return json(res, 400, { error: '이미 두 명이 있는 방이에요' });
         if (room.players[0].nick === nick) return json(res, 400, { error: '상대와 같은 닉네임이에요. 바꿔 주세요' });
+        const lack = betCheck(room, nick);
+        if (lack) return json(res, 400, { error: lack === nick ? '코인이 부족해요 (판돈 ' + room.bet + ')' : '방장의 코인이 부족해서 시작할 수 없어요' });
         const p = newPlayer(2, nick);
         room.players.push(p);
         startGame(room);
@@ -575,10 +720,11 @@ const server = http.createServer(async (req, res) => {
 
       if (action === 'match') {
         const nick = authNick;
+        if (coinsOf(nick) < MATCH_FEE) return json(res, 400, { error: '코인이 부족해요 (참가비 ' + MATCH_FEE + ')' });
         const t = Date.now();
         for (const room of rooms.values()) {
           const host = room.players[0];
-          if (room.isPublic && room.status === 'waiting' && room.players.length === 1 && host.nick !== nick &&
+          if (room.isPublic && room.status === 'waiting' && room.players.length === 1 && host.nick !== nick && !betCheck(room, nick) &&
               (host.connected || t - room.updated < 5000)) {
             const p = newPlayer(2, nick);
             room.players.push(p);
@@ -588,7 +734,7 @@ const server = http.createServer(async (req, res) => {
         }
         const code = makeCode();
         const p = newPlayer(1, nick);
-        rooms.set(code, { code, difficulty: 'normal', mode: 'race', isPublic: true, players: [p], status: 'waiting', updated: t, last: { seq: 0 } });
+        rooms.set(code, { code, difficulty: 'normal', mode: 'race', isPublic: true, bet: MATCH_FEE, fixed: true, players: [p], status: 'waiting', updated: t, last: { seq: 0 } });
         return json(res, 200, { code, pid: p.id, matched: false });
       }
 
@@ -630,7 +776,13 @@ const server = http.createServer(async (req, res) => {
         const opp = room.players.find((x) => x !== p);
         if (!opp.connected || opp.left) return json(res, 400, { error: '상대가 나갔어요' });
         p.rematch = true;
-        if (room.players.every((x) => x.rematch)) startGame(room); else broadcast(room);
+        if (room.players.every((x) => x.rematch)) {
+          if (room.bet > 0 && betCheck(room)) {
+            room.players.forEach((x) => (x.rematch = false)); broadcast(room);
+            return json(res, 400, { error: '코인이 부족해서 재대결할 수 없어요' });
+          }
+          startGame(room);
+        } else broadcast(room);
         return json(res, 200, { ok: true });
       }
       if (action === 'leave') {
