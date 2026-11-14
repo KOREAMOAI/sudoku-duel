@@ -235,6 +235,20 @@ textarea:focus{border-color:var(--blue)}
 .mini{display:flex;gap:6px;margin:0 0 10px}
 .mini button{flex:1;padding:7px 0;border:1px solid var(--line);border-radius:9px;background:var(--paper);color:var(--mute);font-size:13px}
 .mini button.on{background:var(--blue);border-color:var(--blue);color:#fff}
+
+.seg.five label,.hseg label{font-size:13px;padding:9px 0}
+.nav button{font-size:11px}
+#sbar{display:none;margin:0 0 10px}
+.solo #sbar{display:block}
+.solo .meta,.solo .hud{display:none}
+.srow{display:flex;align-items:center;gap:8px;font-size:14px;margin:0 46px 6px 0}
+.srow>span{white-space:nowrap}
+.schip{background:var(--blue);color:#fff;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700}
+.srow .stm{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:700;font-size:16px}
+#spause{display:none}.solo #spause{display:block}
+.sprog{position:relative;height:22px;border-radius:999px;background:var(--card);border:1px solid var(--edge);overflow:hidden}
+.sprog i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--blue);opacity:.28;transition:width .25s}
+.sprog span{position:relative;display:block;text-align:center;font-size:12px;line-height:20px;font-weight:700}
 </style>
 </head>
 <body>
@@ -256,8 +270,10 @@ textarea:focus{border-color:var(--blue)}
 
   <div id="playCard" class="hide">
     <div class="topbar">
-      <div class="tb-who"><span id="whoIcon">👤</span> <b id="who"></b></div>
       <div class="coinpill">🪙 <b id="coins">0</b></div>
+      <div class="coinpill" id="streakPill" title="솔로 연속 클리어">🔥 <b id="streakSolo">0</b></div>
+      <span class="hide"><span id="whoIcon">👤</span><b id="who"></b></span>
+      <div style="flex:1"></div>
       <button class="dailypill hide" id="dailyBtn">🎁 출석 <span id="dailyAmt"></span></button>
     </div>
 
@@ -272,9 +288,11 @@ textarea:focus{border-color:var(--blue)}
         <div class="hero-t">🧩 솔로 모드</div>
         <div class="hero-s">혼자 풀며 기록과 점수를 쌓아요 · 클리어하면 코인!</div>
         <div class="seg hseg">
-          <label><input type="radio" name="sd" value="easy"><span>쉬움</span></label>
-          <label><input type="radio" name="sd" value="normal" checked><span>보통</span></label>
-          <label><input type="radio" name="sd" value="hard"><span>어려움</span></label>
+          <label><input type="radio" name="sd" value="beginner"><span>초보자</span></label>
+          <label><input type="radio" name="sd" value="easy"><span>초급</span></label>
+          <label><input type="radio" name="sd" value="normal" checked><span>중급</span></label>
+          <label><input type="radio" name="sd" value="hard"><span>고급</span></label>
+          <label><input type="radio" name="sd" value="expert"><span>전문가</span></label>
         </div>
         <button class="hero-go" id="solo">▶ 솔로 시작</button>
       </div>
@@ -283,7 +301,14 @@ textarea:focus{border-color:var(--blue)}
         <div class="ct">📋 오늘의 퀘스트 <span class="cnt" id="questCnt"></span></div>
         <div id="questList"></div>
       </div>
+    </section>
 
+    <!-- 배틀 탭 -->
+    <section class="tabp" data-tab="battle">
+      <div class="card" style="display:flex;align-items:center;gap:10px">
+        <div style="font-size:30px">⚔️</div>
+        <div style="flex:1"><div class="ct" style="margin:0">대결 연승 <b id="streakPvp" style="font-size:20px;color:var(--blue)">0</b></div><div class="cap" id="streakPvpBest" style="margin:2px 0 0"></div></div>
+      </div>
       <div class="tiles">
         <button class="tile" id="match"><span class="ti">⚡</span><b>랜덤 매칭</b><span class="ts">참가비 10🪙 · 승자 +10</span></button>
         <button class="tile" id="openSheet"><span class="ti">👥</span><b>친구와 대결</b><span class="ts">방 만들기 · 판돈 설정</span></button>
@@ -425,7 +450,8 @@ textarea:focus{border-color:var(--blue)}
 
   <!-- 하단 탭 바 -->
   <nav class="nav hide" id="nav">
-    <button data-tab="play" class="on"><i>🎮</i>플레이</button>
+    <button data-tab="play" class="on"><i>🏠</i>홈</button>
+    <button data-tab="battle"><i>⚔️</i>배틀</button>
     <button data-tab="rank"><i>🏆</i>랭킹</button>
     <button data-tab="shop"><i>🛍️</i>상점</button>
     <button data-tab="board"><i>💬</i>게시판</button>
@@ -444,10 +470,12 @@ textarea:focus{border-color:var(--blue)}
       </div>
       <div class="cap" id="modeCap">같은 퍼즐을 각자 풀어서 먼저 완성하면 승리</div>
       <label class="f">난이도</label>
-      <div class="seg" id="diff">
-        <label><input type="radio" name="d" value="easy"><span>쉬움</span></label>
-        <label><input type="radio" name="d" value="normal" checked><span>보통</span></label>
-        <label><input type="radio" name="d" value="hard"><span>어려움</span></label>
+      <div class="seg five" id="diff">
+        <label><input type="radio" name="d" value="beginner"><span>초보자</span></label>
+        <label><input type="radio" name="d" value="easy"><span>초급</span></label>
+        <label><input type="radio" name="d" value="normal" checked><span>중급</span></label>
+        <label><input type="radio" name="d" value="hard"><span>고급</span></label>
+        <label><input type="radio" name="d" value="expert"><span>전문가</span></label>
       </div>
       <label class="f">판돈 (이기면 전부 가져가요)</label>
       <div class="seg" id="betSeg">
@@ -466,6 +494,10 @@ textarea:focus{border-color:var(--blue)}
 <!-- 방 -->
 <div id="room" class="hide">
   <div id="banner" class="banner hide"></div>
+  <div id="sbar">
+    <div class="srow"><span class="schip" id="sdiff"></span><span id="sstreak"></span><span id="smis"></span><span class="stm" id="stimer">0:00</span></div>
+    <div class="sprog"><i id="sprogbar"></i><span id="sprogtxt"></span></div>
+  </div>
   <div class="meta"><span>난이도 <b id="diffl"></b> · <b id="model"></b></span><span id="timer" style="font-variant-numeric:tabular-nums"><b>0:00</b></span></div>
   <div class="hud">
     <div class="pc me"><div class="nm" id="mn"></div><div class="sc" id="ms">0</div><div class="bar"><i id="mbar"></i></div><div class="hp" id="mh"></div><div class="fz" id="mf"></div></div>
@@ -488,6 +520,7 @@ textarea:focus{border-color:var(--blue)}
   <div class="tools">
     <button class="btn gray hide" id="item">❄️ 상대 3초 동결 (1회)</button>
     <button class="btn gray" id="mute" style="flex:0 0 56px">🔊</button>
+    <button class="btn gray" id="spause" style="flex:0 0 90px">⏸ 정지</button>
     <button class="btn gray" id="leave" style="flex:0 0 90px">나가기</button>
   </div>
 </div>
@@ -516,6 +549,7 @@ async function api(p, body = {}) {
 }
 const now = () => Date.now() + offset;
 const mmss = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const DIFF_N = { beginner: '초보자', easy: '초급', normal: '중급', hard: '고급', expert: '전문가' }, DIFF_LBL = DIFF_N, DIFF_ORDER = ['beginner', 'easy', 'normal', 'hard', 'expert'];
 const hearts = (n) => '❤️'.repeat(Math.max(0, n)) + '🖤'.repeat(Math.max(0, 3 - n));
 const isRace = () => S && (S.mode === 'race' || S.mode === 'solo');
 
@@ -626,6 +660,7 @@ function applyShop(s) {
   $('#dailyInfo').textContent = d.canClaim ? d.day + '일째 출석 보상 +' + d.reward + '🪙을 받을 수 있어요' : '오늘 출석 완료 · 내일 또 오면 보너스가 늘어나요 (최대 +70🪙)';
   $('#soloCap').textContent = '솔로 보상 오늘 ' + s.soloToday + '/' + s.soloCap + '🪙';
   $('#adminOpen').classList.toggle('hide', !s.admin);
+  if (s.streak) { $('#streakSolo').textContent = s.streak.solo; $('#streakPvp').textContent = s.streak.pvp; $('#streakPvpBest').textContent = '최고 ' + s.streak.pvpBest + '연승 · 솔로 최고 ' + s.streak.soloBest + '연승'; }
   renderShop(); renderQuests(); showNotes(s); renderProfileEdit();
 }
 async function loadShop() { if (!token) return; try { applyShop(await api('shop')); } catch {} }
@@ -775,8 +810,7 @@ function renderMeBar(mb) {
   const c = chgEl(mb.chg); if (c) bar.appendChild(c);
   const g = document.createElement('span'); g.className = 'mg'; g.textContent = mb.rank === 1 ? '👑 현재 1위!' : '1위와 ' + mb.gap + ' 차이'; bar.appendChild(g);
 }
-const DIFF_LBL = { easy: '쉬움', normal: '보통', hard: '어려움' };
-let accOpen = '', accBy = { easy: 'time', normal: 'time', hard: 'time' }, accMe = null;
+let accOpen = '', accBy = { beginner: 'time', easy: 'time', normal: 'time', hard: 'time', expert: 'time' }, accMe = null;
 async function fetchRanking(m, d, by) {
   const res = await (await fetch('/api/ranking?mode=' + m + '&diff=' + d + '&by=' + by + (user ? '&me=' + encodeURIComponent(user) : ''))).json();
   return Array.isArray(res) ? { rows: res, me: null } : res;
@@ -817,7 +851,7 @@ async function loadRankAll() {
     }
     // 솔로: 난이도별 접이식 (▶를 눌러 펼치기)
     el.textContent = '';
-    ['easy', 'normal', 'hard'].forEach((d) => {
+    DIFF_ORDER.forEach((d) => {
       const acc = document.createElement('div'); acc.className = 'acc' + (accOpen === d ? ' open' : ''); acc.id = 'acc_' + d;
       const h = document.createElement('button'); h.className = 'acch';
       h.innerHTML = '<span class="tri">▶</span><span></span><span class="pv2"></span>'; h.children[1].textContent = DIFF_LBL[d];
@@ -839,9 +873,9 @@ document.querySelectorAll('input[name=rm]').forEach((r) => r.addEventListener('c
 async function loadMyStats() {
   if (!token) return;
   try {
-    const u = await api('mystats'), el = $('#mystats'), names = { easy: '쉬움', normal: '보통', hard: '어려움' };
+    const u = await api('mystats'), el = $('#mystats'), names = DIFF_N;
     let t = '<table><tr><th>솔로</th><th>완료</th><th>최단</th><th>최고점</th><th>평균</th></tr>';
-    for (const d of ['easy', 'normal', 'hard']) {
+    for (const d of DIFF_ORDER) {
       const s = u.solo[d];
       t += '<tr><td>' + names[d] + '</td><td>' + s.done + '</td><td>' + (s.bestTime ? mmss(s.bestTime) : '-') + '</td><td>' + (s.bestScore || '-') + '</td><td>' + (s.done ? mmss(s.totalTime / s.done) : '-') + '</td></tr>';
     }
@@ -894,7 +928,7 @@ async function loadSeason() {
     $('#seasonPrize').textContent = '🥇 ' + sv.prizes[0] + ' · 🥈 ' + sv.prizes[1] + ' · 🥉 ' + sv.prizes[2] + '🪙 + 한정 칭호 · 참여 보상 ' + sv.part + '🪙';
     const rows = board === 'solo' ? sv.solo : sv.wins;
     renderBoard(el, rows, board === 'solo'
-      ? { val: (r) => r.score + '점', prizes: sv.prizes, cols: [{ h: '최고점', v: (r) => r.score + ({ easy: ' (쉬움)', normal: ' (보통)', hard: ' (어려움)' }[r.diff] || '') }] }
+      ? { val: (r) => r.score + '점', prizes: sv.prizes, cols: [{ h: '최고점', v: (r) => r.score + (DIFF_N[r.diff] ? ' (' + DIFF_N[r.diff] + ')' : '') }] }
       : { val: (r) => r.wins + '승', prizes: sv.prizes, cols: [{ h: '승수', v: (r) => r.wins + '승' }] });
     let mb = null;
     if (user && sv.me) {
@@ -948,14 +982,15 @@ async function openProfile(nick) {
     hd.appendChild(w); body.appendChild(hd);
     if (p.seasonTitles.length) { const tg = document.createElement('div'); tg.className = 'pf-tags'; p.seasonTitles.forEach((t) => { const sp = document.createElement('span'); sp.textContent = t; tg.appendChild(sp); }); body.appendChild(tg); }
     const wl = (x) => { const n = x.wins + x.losses; return x.wins + '승 ' + x.losses + '패' + (n ? ' (' + Math.round((x.wins / n) * 100) + '%)' : ''); };
-    const names = { easy: '쉬움', normal: '보통', hard: '어려움' };
+    const names = DIFF_N;
     let t = '<table><tr><th>솔로</th><th>완료</th><th>최단</th><th>최고점</th></tr>';
-    for (const d of ['easy', 'normal', 'hard']) { const x = p.solo[d]; t += '<tr><td>' + names[d] + '</td><td>' + x.done + '</td><td>' + (x.bestTime ? mmss(x.bestTime) : '-') + '</td><td>' + (x.bestScore || '-') + '</td></tr>'; }
+    for (const d of DIFF_ORDER) { const x = p.solo[d]; t += '<tr><td>' + names[d] + '</td><td>' + x.done + '</td><td>' + (x.bestTime ? mmss(x.bestTime) : '-') + '</td><td>' + (x.bestScore || '-') + '</td></tr>'; }
     const info = document.createElement('div'); info.innerHTML = t + '</table>';
     const l1 = document.createElement('div'); l1.style.cssText = 'margin-top:10px;font-size:14px'; l1.textContent = '레이스 ' + wl(p.race) + ' · 칸 차지 ' + wl(p.territory); info.appendChild(l1);
     const l2 = document.createElement('div'); l2.style.cssText = 'margin-top:6px;font-size:14px';
     l2.textContent = '이번 시즌 · 솔로 ' + (p.season.soloRank ? p.season.soloRank + '위 (' + p.season.soloScore + '점)' : '기록 없음') + ' · 대결 ' + (p.season.winRank ? p.season.winRank + '위 (' + p.season.wins + '승)' : '기록 없음');
     info.appendChild(l2);
+    const l4 = document.createElement('div'); l4.style.cssText = 'margin-top:6px;font-size:14px'; l4.textContent = '🔥 솔로 연승 ' + p.streak.solo + ' (최고 ' + p.streak.soloBest + ') · ⚔️ 대결 연승 ' + p.streak.pvp + ' (최고 ' + p.streak.pvpBest + ')'; info.appendChild(l4);
     const l3 = document.createElement('div'); l3.className = 'cap'; l3.style.margin = '8px 0 0'; l3.textContent = p.created ? fmtDate(p.created) + ' 가입' : ''; info.appendChild(l3);
     body.appendChild(info);
   } catch { body.textContent = '불러오지 못했어요'; }
@@ -1083,13 +1118,13 @@ document.querySelectorAll('#nav button').forEach((b) => b.addEventListener('clic
 function openSheet() { $('#sheet').classList.remove('hide'); }
 function closeSheet() { $('#sheet').classList.add('hide'); }
 $('#openSheet').onclick = openSheet; $('#sheetBg').onclick = closeSheet;
-const MODE_N = { race: '레이스', territory: '칸 차지' }, DIFF_N = { easy: '쉬움', normal: '보통', hard: '어려움' };
+const MODE_N = { race: '레이스', territory: '칸 차지' };
 async function pollLobby() {
   if (!token || $('#lobby').classList.contains('hide') || document.hidden) return;
   try {
     const r = await api('lobby');
     setResume(r.solo);
-    if (curTab !== 'play') return;
+    if (curTab !== 'battle') return;
     const rl = $('#roomList'); rl.innerHTML = '';
     $('#roomCnt').textContent = r.rooms.length ? r.rooms.length + '개' : '';
     if (!r.rooms.length) rl.innerHTML = '<div class="empty">열려 있는 방이 없어요.<br>친구와 대결에서 \'공개\'로 방을 만들어 보세요!</div>';
@@ -1196,6 +1231,7 @@ $('#leave').onclick = async () => {
   try { await (solo ? api('solo/leave') : api('leave', sess)); } catch {}
   toLobby();
 };
+$('#spause').onclick = () => guard(() => call('pause'));
 $('#item').onclick = () => api('item', sess).catch((e) => toast(e.message));
 
 /* ---------- 입력 ---------- */
@@ -1316,7 +1352,7 @@ function render() {
   const me = S.players.find((p) => p.idx === S.you), op = S.players.find((p) => p.idx !== S.you);
   setName($('#mn'), me.nick, me.color, me.title, ' (나)');
   if (op) setName($('#on'), op.nick, op.color, op.title); else $('#on').textContent = '상대 대기 중';
-  $('#diffl').textContent = { easy: '쉬움', normal: '보통', hard: '어려움' }[S.difficulty];
+  $('#diffl').textContent = DIFF_N[S.difficulty] || '';
   $('#model').textContent = { solo: '솔로', race: '레이스', territory: '칸 차지' }[S.mode] + (S.bet > 0 ? ' · 판돈 ' + S.bet + '🪙' : '');
   const pct = (p) => (S.total ? Math.round((p.cells / S.total) * 100) : 0);
   if (race) {
@@ -1329,6 +1365,14 @@ function render() {
     $('#mbar').style.width = '0'; $('#obar').style.width = '0';
     $('#mh').textContent = hearts(me.lives); $('#oh').textContent = op ? hearts(op.lives) : '';
   }
+  if (S.mode === 'solo') {
+    $('#sdiff').textContent = DIFF_N[S.difficulty] || '';
+    $('#sstreak').textContent = '🔥 ' + (S.streak || 0) + '연승';
+    $('#smis').textContent = '실수 ' + (3 - me.lives) + '/3';
+    const p = S.total ? Math.round((me.cells / S.total) * 100) : 0;
+    $('#sprogbar').style.width = p + '%'; $('#sprogtxt').textContent = me.cells + '/' + S.total + ' · ' + p + '%';
+    $('#spause').disabled = S.status !== 'playing' || !!S.pausedAt;
+  }
   $('#ctlRace').classList.toggle('hide', !race);
   $('#legend').classList.toggle('hide', S.mode !== 'territory');
   $('#item').classList.toggle('hide', race);
@@ -1336,7 +1380,8 @@ function render() {
 
   const playing = S.status === 'playing' || S.status === 'finished';
   const board = $('#board');
-  board.classList.toggle('dim', S.status === 'waiting' || S.status === 'countdown');
+  const paused = S.mode === 'solo' && S.status === 'playing' && !!S.pausedAt;
+  board.classList.toggle('dim', S.status === 'waiting' || S.status === 'countdown' || paused);
   const selv = sel >= 0 && S.values ? S.values[sel] : 0;
   const sr = Math.floor(sel / 9), sc = sel % 9;
   const counts = new Array(10).fill(0);
@@ -1365,13 +1410,13 @@ function render() {
     ['pop', 'shake'].forEach((k) => { if (el.classList.contains(k)) cls += ' ' + k; });
     el.className = cls;
   }
-  document.querySelectorAll('#pad button').forEach((b) => { b.disabled = counts[+b.dataset.v] >= 9 || S.status !== 'playing'; });
+  document.querySelectorAll('#pad button').forEach((b) => { b.disabled = counts[+b.dataset.v] >= 9 || S.status !== 'playing' || paused; });
   $('#pad').classList.toggle('notes', race && noteMode);
 
   $('#noteBadge').textContent = noteMode ? 'ON' : 'OFF'; $('#noteBadge').classList.toggle('off', !noteMode);
   const left = 3 - me.hints;
-  $('#hintBadge').textContent = left; $('#bHint').disabled = S.status !== 'playing' || left <= 0;
-  ['#bUndo', '#bErase', '#bNote'].forEach((b) => { $(b).disabled = S.status !== 'playing'; });
+  $('#hintBadge').textContent = left; $('#bHint').disabled = S.status !== 'playing' || left <= 0 || paused;
+  ['#bUndo', '#bErase', '#bNote'].forEach((b) => { $(b).disabled = S.status !== 'playing' || paused; });
   const item = $('#item');
   item.disabled = S.status !== 'playing' || me.itemUsed;
   item.textContent = me.itemUsed ? '❄️ 동결 사용함' : '❄️ 상대 3초 동결 (1회)';
@@ -1401,12 +1446,17 @@ function renderOverlay(me, op) {
     box('<div style="color:var(--mute);font-size:14px">친구에게 이 코드를 알려 주세요</div><div class="code">' + S.code + '</div>' + (S.bet > 0 ? '<div style="font-weight:700;margin-bottom:8px">판돈 ' + S.bet + '🪙' + (S.fixed ? ' (참가비 · 승자 +10 보너스)' : '') + '</div>' : '') +
       '<button class="btn" id="cp">초대 링크 복사</button><div style="color:var(--mute);font-size:13px;margin-top:10px">상대를 기다리는 중…</div>');
     $('#cp').onclick = () => { (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(() => toast('링크를 복사했어요'), () => prompt('링크를 복사하세요', link)); };
+  } else if (S.mode === 'solo' && S.status === 'playing' && S.pausedAt) {
+    box('<div class="res" style="font-size:22px">⏸ 일시정지</div><div style="color:var(--mute);font-size:14px;margin:6px 0 14px">시간이 멈춰 있어요</div><button class="btn" id="rs2">계속하기</button>');
+    $('#rs2').onclick = () => guard(() => call('resume'));
   } else if (S.status === 'countdown') {
     box('<div style="color:var(--mute)">곧 시작해요</div><div class="big" id="cd">3</div>');
   } else if (S.status === 'finished' && S.mode === 'solo') {
     const r = S.result;
     const badges = (r.newBestTime ? '<div style="color:var(--blue);font-weight:700;margin-top:4px">🏅 최단 기록 갱신!</div>' : '') +
       (r.newBestScore ? '<div style="color:var(--blue);font-weight:700;margin-top:4px">⭐ 최고 점수 갱신!</div>' : '') +
+      (r.won && r.streak > 1 ? '<div style="margin-top:6px;font-weight:700;color:#ea580c">🔥 ' + r.streak + '연승 중!</div>' : '') +
+      (!r.won ? '<div style="margin-top:4px;font-size:13px;color:var(--mute)">연승이 끊겼어요</div>' : '') +
       (r.won ? '<div style="margin-top:6px;font-weight:700">🪙 +' + (r.coins || 0) + (r.capped ? ' <span style="color:var(--mute);font-size:12px;font-weight:400">(오늘 솔로 보상 한도)</span>' : '') + '</div>' : '') +
       (r.won && r.hinted ? '<div style="color:var(--mute);font-size:12px;margin-top:6px">힌트를 쓴 판은 최단 기록에 등록되지 않아요</div>' : '');
     box((r.won
@@ -1449,9 +1499,8 @@ function tick() {
   if (!S) return;
   const t = now();
   const tm = $('#timer b');
-  if (S.status === 'playing') tm.textContent = mmss(t - S.startedAt);
-  else if (S.status === 'finished') tm.textContent = mmss(S.endedAt - S.startedAt);
-  else tm.textContent = '0:00';
+  const txt = S.status === 'playing' ? mmss((S.pausedAt || t) - S.startedAt) : S.status === 'finished' ? mmss(S.endedAt - S.startedAt) : '0:00';
+  tm.textContent = txt; $('#stimer').textContent = txt;
   if (S.status === 'countdown') { const cd = $('#cd'); const n = Math.max(1, Math.ceil((S.startsAt - t) / 1000)); if (cd) cd.textContent = n; if (n !== prevCd) { prevCd = n; SFX.tick(); } }
   const me = S.players.find((p) => p.idx === S.you), op = S.players.find((p) => p.idx !== S.you);
   const f = $('#frz');

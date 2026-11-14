@@ -15,7 +15,8 @@ const COUNTDOWN_MS = 3500;
 const DISCONNECT_FORFEIT_MS = 20000;
 const BONUS = 3;
 const LIVES = 3;
-const GIVENS = { easy: 40, normal: 32, hard: 26 };
+// 난이도: beginner 초보자 · easy 초급 · normal 중급 · hard 고급 · expert 전문가 (기존 easy/normal/hard 기록은 각각 초급/중급/고급으로 그대로 이어짐)
+const GIVENS = { beginner: 46, easy: 40, normal: 33, hard: 28, expert: 22 };
 
 
 /* ---------- 영구 저장소 (Upstash Redis REST) ----------
@@ -88,7 +89,7 @@ async function shutdown() {
 process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown);
 
 /* ---------- 통계/랭킹 ---------- */
-const DIFFS = ['easy', 'normal', 'hard'];
+const DIFFS = ['beginner', 'easy', 'normal', 'hard', 'expert'];
 let stats = {};
 try { stats = JSON.parse(fs.readFileSync(RANK_FILE, 'utf8')); } catch {}
 function migrateStats() {
@@ -255,7 +256,7 @@ setInterval(() => { const now = Date.now(); for (const [k, a] of moveLog) if (!a
 
 /* ---------- 코인/상점 ---------- */
 const WELCOME_COINS = 100, MATCH_FEE = 10, MATCH_BONUS = 10, BETS = [0, 50, 100, 200, 500];
-const SOLO_REWARD = { easy: 10, normal: 20, hard: 30 }, SOLO_DAILY_CAP = 100;
+const SOLO_REWARD = { beginner: 5, easy: 10, normal: 20, hard: 30, expert: 50 }, SOLO_DAILY_CAP = 150;
 const SHOP = {
   theme: {
     light: { name: '기본 (라이트)', price: 0, base: 'light', vars: {} },
@@ -301,6 +302,15 @@ function eco(nick) {
   }
   return u.eco;
 }
+function streakOf(nick) {
+  const e = eco(nick); if (!e) return { solo: 0, soloBest: 0, pvp: 0, pvpBest: 0 };
+  return e.streak = e.streak || { solo: 0, soloBest: 0, pvp: 0, pvpBest: 0 };
+}
+function streakBump(nick, kind, won) { // kind: 'solo' | 'pvp'
+  const k = streakOf(nick); if (!eco(nick)) return;
+  if (won) { k[kind]++; if (k[kind] > k[kind + 'Best']) k[kind + 'Best'] = k[kind]; } else k[kind] = 0;
+  saveAcc();
+}
 const coinsOf = (nick) => { const e = eco(nick); return e ? e.coins : 0; };
 function addCoins(nick, n) { const e = eco(nick); if (!e) return; e.coins = Math.max(0, e.coins + n); saveAcc(); }
 const kstDay = (off = 0) => new Date(Date.now() + 9 * 3600e3 + off * 864e5).toISOString().slice(0, 10);
@@ -336,7 +346,7 @@ function shopState(nick) {
   catalog.title = catalog.title.concat(e.owned.title.filter((id) => seasonTitle(id)).map((id) => ({ id, ...seasonTitle(id), owned: true })));
   const th = getItem('theme', e.eq.theme) || SHOP.theme.light;
   return {
-    coins: e.coins, eq: e.eq, cosm: cosm(nick), profile: profileOf(nick), catalog, quests: questView(nick), notes: e.notes || [], admin: isAdminNick(nick),
+    coins: e.coins, eq: e.eq, cosm: cosm(nick), profile: profileOf(nick), streak: streakOf(nick), catalog, quests: questView(nick), notes: e.notes || [], admin: isAdminNick(nick),
     eqTheme: { id: e.eq.theme, base: th.base, vars: th.vars },
     daily: { canClaim, reward: dailyReward(nextDay), day: nextDay },
     soloToday: e.daily.soloDate === day ? e.daily.soloEarned : 0, soloCap: SOLO_DAILY_CAP,
@@ -411,7 +421,7 @@ const QUEST_POOL = [
   { id: 'solo2', fam: 'solo', ev: 'solo_clear', goal: 2, reward: 50, name: '솔로 2판 클리어' },
   { id: 'clean', fam: 'clean', ev: 'solo_clean', goal: 1, reward: 60, name: '실수 없이 솔로 1판 클리어' },
   { id: 'nohint', fam: 'nohint', ev: 'solo_nohint', goal: 1, reward: 40, name: '힌트 없이 솔로 1판 클리어' },
-  { id: 'hard', fam: 'hard', ev: 'solo_hard', goal: 1, reward: 60, name: '어려움 솔로 1판 클리어' },
+  { id: 'hard', fam: 'hard', ev: 'solo_hard', goal: 1, reward: 60, name: '고급 이상 솔로 1판 클리어' },
   { id: 'play2', fam: 'play', ev: 'pvp_play', goal: 2, reward: 40, name: '대결 2판 플레이' },
   { id: 'win1', fam: 'win', ev: 'pvp_win', goal: 1, reward: 50, name: '대결 1승 거두기' },
   { id: 'rwin', fam: 'win', ev: 'race_win', goal: 1, reward: 50, name: '레이스에서 1승' },
@@ -518,15 +528,24 @@ function seasonSolo(nick, score, diff) {
 }
 // 대결 종료 처리: 60초 이상 진행된 판만 퀘스트/시즌에 반영하고, 같은 상대와는 시즌당 6판까지만 인정
 function onPvpEnd(room, winner, reason) {
+  // 연승: 나가기/연결 끊김으로 진 사람은 판이 짧아도 연승이 끊겨요
+  if (room.players.length === 2 && winner && ['left', 'disconnect', 'cheat'].includes(reason)) {
+    const lo = room.players.find((p) => p.idx !== winner); if (lo) streakBump(lo.nick, 'pvp', false);
+  }
   if (room.players.length < 2 || !room.startedAt || room.endedAt - room.startedAt < PVP_MIN_MS) return;
   const s = ensureSeason(), key = room.players.map((p) => p.nick).sort().join('|');
   s.pairs = s.pairs || {}; s.plays = s.plays || {};
   const counted = (s.pairs[key] = (s.pairs[key] || 0) + 1) <= PAIR_CAP;
   if (!counted) { saveAcc(); return; }
   for (const p of room.players) { s.plays[p.nick] = (s.plays[p.nick] || 0) + 1; questEvent(p.nick, 'pvp_play'); }
-  if (winner && ['complete', 'board', 'lives'].includes(reason)) {
+  if (winner) {
+    const clean = ['complete', 'board', 'lives'].includes(reason);
+    for (const p of room.players) {
+      if (p.idx === winner) { if (clean) streakBump(p.nick, 'pvp', true); }
+      else if (!['left', 'disconnect', 'cheat'].includes(reason)) streakBump(p.nick, 'pvp', false);
+    }
     const w = room.players.find((p) => p.idx === winner);
-    if (w) { s.wins[w.nick] = (s.wins[w.nick] || 0) + 1; questEvent(w.nick, 'pvp_win'); questEvent(w.nick, room.mode === 'territory' ? 'terr_win' : 'race_win'); }
+    if (clean && w) { s.wins[w.nick] = (s.wins[w.nick] || 0) + 1; questEvent(w.nick, 'pvp_win'); questEvent(w.nick, room.mode === 'territory' ? 'terr_win' : 'race_win'); }
   }
   saveAcc();
 }
@@ -566,7 +585,7 @@ function publicProfile(nick) {
   const si = b.solo.findIndex((r) => r.nick === k), wi = b.wins.findIndex((r) => r.nick === k);
   return { nick: k, icon: p.icon, msg: p.msg, color: c.color, title: c.title, created: u.created || 0, online: (Date.now() - (seen.get(k) || 0)) < 60000,
     race: t.race, territory: t.territory, solo: t.solo, seasonTitles,
-    season: { soloScore: (s.solo[k] || {}).score || 0, soloRank: si + 1, wins: s.wins[k] || 0, winRank: wi + 1, plays: (s.plays || {})[k] || 0 } };
+    streak: streakOf(k), season: { soloScore: (s.solo[k] || {}).score || 0, soloRank: si + 1, wins: s.wins[k] || 0, winRank: wi + 1, plays: (s.plays || {})[k] || 0 } };
 }
 
 
@@ -874,13 +893,13 @@ const SOLO_KEEP_MS = +process.env.SOLO_KEEP_MS || 3 * 3600e3, SOLO_IDLE_MS = +pr
 const RESUME_RANKED = process.env.RESUME_RANKED !== 'off'; // off: 이어하기를 한 판은 랭킹/시즌 기록에서 제외
 function persistSolo(g) { accounts.soloSaved = accounts.soloSaved || {}; accounts.soloSaved[g.nick] = g; saveAcc(); }
 function unpersistSolo(nick) { if (accounts.soloSaved && accounts.soloSaved[nick]) { delete accounts.soloSaved[nick]; saveAcc(); } }
-function soloPause(g, at) { if (g.status === 'playing' && !g.pausedAt) { g.pausedAt = at; g.updated = Date.now(); } }
+function soloPause(g, at, manual) { if (g.status === 'playing' && !g.pausedAt) { g.pausedAt = at; g.updated = Date.now(); g.manual = !!manual; } }
 // 이어하기: 자리를 비운 시간은 빼 준다 (startedAt을 그만큼 뒤로 민다). idle=true면 창만 닫고 나간 판도 마지막 입력 시각부터 멈춘 것으로 본다
 function soloResume(g, idle) {
   if (g.status !== 'playing') return g;
   const now = Date.now();
   if (idle && !g.pausedAt && now - g.updated > SOLO_IDLE_MS) g.pausedAt = g.updated;
-  if (g.pausedAt) { g.startedAt += now - g.pausedAt; g.pausedAt = 0; g.resumed = true; }
+  if (g.pausedAt) { g.startedAt += now - g.pausedAt; g.pausedAt = 0; g.manual = false; g.resumed = true; }
   g.updated = now; unpersistSolo(g.nick);
   return g;
 }
@@ -898,7 +917,7 @@ function loadSavedSolos() {
     solos.set(n, g);
   }
 }
-const SOLO_CFG = { easy: { base: 1000, par: 480, k: 2 }, normal: { base: 2000, par: 720, k: 3 }, hard: { base: 3000, par: 1080, k: 4 } };
+const SOLO_CFG = { beginner: { base: 500, par: 300, k: 2 }, easy: { base: 1000, par: 480, k: 2 }, normal: { base: 2000, par: 720, k: 3 }, hard: { base: 3000, par: 1080, k: 4 }, expert: { base: 4500, par: 1500, k: 5 } };
 function soloScore(g, sec) {
   const c = SOLO_CFG[g.difficulty];
   return Math.max(0, c.base + Math.max(0, c.par - sec) * c.k - g.hints * 150 - g.mistakes * 200);
@@ -911,13 +930,15 @@ function soloStart(nick, difficulty) {
     mistakes: 0, hints: 0, cells: 0, total: puzzle.filter((v) => !v).length,
     status: 'playing', startedAt: Date.now(), endedAt: 0, result: null, updated: Date.now(),
   };
+  const prev = solos.get(nick);
+  if (prev && prev.status === 'playing') streakBump(nick, 'solo', false); // 진행 중이던 판을 버리고 새로 시작하면 연승이 끊겨요
   solos.set(nick, g); unpersistSolo(nick);
   return g;
 }
 function soloView(g) {
   const fin = g.status === 'finished';
   return {
-    mode: 'solo', status: g.status, difficulty: g.difficulty, total: g.total,
+    mode: 'solo', status: g.status, difficulty: g.difficulty, total: g.total, pausedAt: g.pausedAt || 0, streak: streakOf(g.nick).solo,
     startedAt: g.startedAt, endedAt: g.endedAt, now: Date.now(), startsAt: 0, you: 1, code: '',
     players: [{ idx: 1, nick: g.nick, ...cosm(g.nick), lives: LIVES - g.mistakes, score: g.cells, cells: g.cells, hints: g.hints,
       itemUsed: false, frozenUntil: 0, connected: true, rematch: false, cursor: -1 }],
@@ -940,7 +961,7 @@ function soloFinish(g, won) {
     questEvent(g.nick, 'solo_clear');
     if (!g.mistakes) questEvent(g.nick, 'solo_clean');
     if (!g.hints) questEvent(g.nick, 'solo_nohint');
-    if (g.difficulty === 'hard') questEvent(g.nick, 'solo_hard');
+    if (g.difficulty === 'hard' || g.difficulty === 'expert') questEvent(g.nick, 'solo_hard');
     if (ranked && !g.hints && (!s.bestTime || time < s.bestTime)) { s.bestTime = time; r.newBestTime = true; }
     if (ranked && r.score > s.bestScore) { s.bestScore = r.score; r.newBestScore = true; }
     const e = eco(g.nick), day = kstDay(), full = SOLO_REWARD[g.difficulty];
@@ -950,6 +971,8 @@ function soloFinish(g, won) {
       e.daily.soloEarned += gain; e.coins += gain; r.coins = gain; r.capped = gain < full;
     }
   } else s.over++;
+  streakBump(g.nick, 'solo', won);
+  r.streak = streakOf(g.nick).solo;
   g.result = r;
   saveRanks();
 }
@@ -1230,13 +1253,14 @@ const server = http.createServer(async (req, res) => {
           if (a === 'start') return json(res, 200, { state: soloView(soloStart(authNick, body.difficulty)) });
           if (a === 'leave') {
             const lg = solos.get(authNick);
-            if (lg && lg.status === 'playing') { soloPause(lg, Date.now()); persistSolo(lg); } else { solos.delete(authNick); unpersistSolo(authNick); }
+            if (lg && lg.status === 'playing') { soloPause(lg, Date.now(), true); persistSolo(lg); } else { solos.delete(authNick); unpersistSolo(authNick); }
             return json(res, 200, { ok: true });
           }
           const g = solos.get(authNick);
           if (!g) throw new Error('진행 중인 솔로 게임이 없어요');
+          if (a === 'pause') { if (g.status === 'playing') { soloPause(g, Date.now(), true); persistSolo(g); } return json(res, 200, { state: soloView(g) }); }
           if (a === 'resume') return json(res, 200, { state: soloView(soloResume(g, true)) });
-          if (a === 'state') return json(res, 200, { state: soloView(soloResume(g, false)) });
+          if (a === 'state') return json(res, 200, { state: soloView(g.pausedAt && g.manual ? g : soloResume(g, false)) });
           if (a === 'move') return json(res, 200, soloMove(g, body.i, body.v));
           if (a === 'erase') return json(res, 200, soloErase(g, body.i));
           if (a === 'hint') return json(res, 200, soloHint(g, body.i));
