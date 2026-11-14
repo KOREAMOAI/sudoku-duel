@@ -824,6 +824,7 @@ function renderOverlay(me, op) {
     const why = {
       board: '판이 모두 채워졌어요', complete: win ? '퍼즐을 먼저 완성했어요' : '상대가 퍼즐을 먼저 완성했어요',
       lives: win ? '상대가 실수 3회로 탈락했어요' : '실수 3회로 탈락했어요',
+      cheat: win ? '상대가 부정행위로 정지되어 승리했어요' : '부정행위가 감지되어 계정이 정지됐어요',
       left: win ? '상대가 나갔어요' : '대결에서 나갔어요', disconnect: win ? '상대 연결이 끊겼어요' : '연결이 끊겨 기권 처리됐어요',
     }[S.reason] || '';
     let rm = '다시 대결', dis = false;

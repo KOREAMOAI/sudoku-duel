@@ -37,6 +37,7 @@ function bump(nick, mode, key) { st(nick)[mode === 'territory' ? 'territory' : '
 function rankingList(mode, diff, by) {
   const rows = [];
   for (const nick of Object.keys(stats)) {
+    if (isBanned(nick)) continue;
     const u = st(nick);
     if (mode === 'solo') {
       const s = u.solo[DIFFS.includes(diff) ? diff : 'normal'];
@@ -80,7 +81,7 @@ function nickFromToken(tok) {
   if (!ses) return null;
   if (Date.now() - ses.at > SESSION_MS) { delete accounts.sessions[k]; saveAcc(); return null; }
   const u = accounts.users[ses.nick.toLowerCase()];
-  return u ? u.nick : null;
+  return u && !u.banned ? u.nick : null;
 }
 function signup(nick, pw) {
   nick = String(nick || '').trim(); pw = String(pw || '');
@@ -108,8 +109,70 @@ function login(nick, pw) {
     throw new Error('닉네임 또는 비밀번호가 맞지 않아요');
   }
   fails.delete(key);
+  if (u.banned) throw new Error('정지된 계정이에요');
   return { token: newSession(u.nick), nick: u.nick };
 }
+
+/* ---------- 부정행위 방어 ---------- */
+const AC_ON = process.env.ANTICHEAT !== 'off', STRIKES_TO_BAN = 2, ADMIN_KEY = process.env.ADMIN_KEY || '';
+const moveLog = new Map(); // nick -> 최근 입력 시각들
+const reqLog = new Map();  // nick -> 최근 1초 요청 시각들
+const signupLog = new Map(); // ip -> 가입 시각들
+const userOf = (nick) => accounts.users[String(nick).toLowerCase()];
+const isBanned = (nick) => { const u = userOf(nick); return !!(u && u.banned); };
+function clientIp(req) { return String((req.headers['x-forwarded-for'] || req.socket.remoteAddress || '')).split(',')[0].trim(); }
+function banAccount(nick, reason) {
+  const u = userOf(nick); if (!u || u.banned) return;
+  u.banned = { at: Date.now(), reason };
+  for (const k of Object.keys(accounts.sessions)) if (accounts.sessions[k].nick.toLowerCase() === u.nick.toLowerCase()) delete accounts.sessions[k];
+  solos.delete(u.nick);
+  for (const room of rooms.values()) {
+    const p = room.players.find((x) => x.nick === u.nick);
+    if (p && (room.status === 'playing' || room.status === 'countdown')) {
+      const opp = room.players.find((x) => x !== p);
+      p.left = true; finish(room, opp ? opp.idx : 0, 'cheat');
+    }
+  }
+  saveAcc();
+  console.log('[ban]', u.nick, reason);
+}
+function strike(nick, reason) {
+  const u = userOf(nick); if (!u || u.banned) return;
+  u.strikes = (u.strikes || 0) + 1;
+  u.lastStrike = { at: Date.now(), reason };
+  moveLog.delete(nick);
+  console.log('[strike]', u.nick, u.strikes, reason);
+  if (u.strikes >= STRIKES_TO_BAN) banAccount(u.nick, reason); else saveAcc();
+  throw new Error(u.strikes >= STRIKES_TO_BAN ? '비정상적인 입력이 감지되어 계정이 정지되었어요' : '비정상적인 입력이 감지됐어요. 반복되면 계정이 정지돼요');
+}
+// 입력이 들어올 때마다 호출: 사람이 낼 수 없는 속도/규칙성이면 경고
+function watchMove(nick) {
+  if (isBanned(nick)) throw new Error('정지된 계정이에요');
+  if (!AC_ON) return;
+  const now = Date.now();
+  const a = (moveLog.get(nick) || []).filter((t) => now - t < 60000); a.push(now);
+  if (a.length > 16) a.shift();
+  moveLog.set(nick, a);
+  if (a.length >= 10 && now - a[a.length - 10] < 4000) strike(nick, '입력 속도가 사람의 한계를 넘음');
+  if (a.length >= 14) {
+    const d = []; for (let i = 1; i < a.length; i++) d.push(a[i] - a[i - 1]);
+    const m = d.reduce((x, y) => x + y, 0) / d.length;
+    const sd = Math.sqrt(d.reduce((x, y) => x + (y - m) ** 2, 0) / d.length);
+    if (m < 2500 && sd / m < 0.15) strike(nick, '입력 간격이 기계처럼 일정함');
+  }
+}
+// 완주 시간이 비현실적으로 짧으면 경고 (빈 칸당 최소 0.9초)
+function watchFinish(nick, empties, startedAt) {
+  if (!AC_ON) return;
+  if (Date.now() - startedAt < empties * 900) strike(nick, '비현실적으로 빠른 완주');
+}
+function rateLimit(key) {
+  if (!AC_ON) return true;
+  const now = Date.now();
+  const a = (reqLog.get(key) || []).filter((t) => now - t < 1000); a.push(now); reqLog.set(key, a);
+  return a.length <= 10;
+}
+setInterval(() => { const now = Date.now(); for (const [k, a] of moveLog) if (!a.length || now - a[a.length - 1] > 120000) moveLog.delete(k); for (const [k, a] of reqLog) if (!a.length || now - a[a.length - 1] > 5000) reqLog.delete(k); for (const [k, a] of signupLog) if (!a.some((t) => now - t < 86400000)) signupLog.delete(k); }, 60000).unref();
 
 /* ---------- 코인/상점 ---------- */
 const WELCOME_COINS = 100, MATCH_FEE = 10, MATCH_BONUS = 10, BETS = [0, 50, 100, 200, 500];
@@ -144,7 +207,6 @@ const SHOP = {
 };
 const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const getItem = (kind, id) => (hasOwn(SHOP, kind) && hasOwn(SHOP[kind], String(id)) ? SHOP[kind][String(id)] : null);
-const userOf = (nick) => accounts.users[String(nick).toLowerCase()];
 function eco(nick) {
   const u = userOf(nick);
   if (!u) return null;
@@ -421,11 +483,13 @@ function raceActive(room, p) {
 function raceMove(room, p, i, v) {
   raceActive(room, p);
   if (!Number.isInteger(i) || i < 0 || i > 80 || !Number.isInteger(v) || v < 1 || v > 9) throw new Error('잘못된 입력');
+  watchMove(p.nick);
   if (room.puzzle[i]) throw new Error('처음부터 주어진 칸이에요');
   if (p.grid[i] && !p.wrong[i]) throw new Error('이미 맞힌 칸이에요');
   if (p.wrong[i] && p.grid[i] === v) return { correct: false, same: true };
   const opp = room.players.find((x) => x !== p);
   if (room.solution[i] === v) {
+    if (p.cells + 1 >= room.total) watchFinish(p.nick, room.total, room.startedAt);
     p.grid[i] = v; p.wrong[i] = false; p.cells++;
     if (p.cells >= room.total) { finish(room, p.idx, 'complete'); return { correct: true }; }
     broadcast(room);
@@ -516,10 +580,12 @@ function soloActive(g) {
 function soloMove(g, i, v) {
   soloActive(g);
   if (!Number.isInteger(i) || i < 0 || i > 80 || !Number.isInteger(v) || v < 1 || v > 9) throw new Error('잘못된 입력');
+  watchMove(g.nick);
   if (g.puzzle[i]) throw new Error('처음부터 주어진 칸이에요');
   if (g.grid[i] && !g.wrong[i]) throw new Error('이미 맞힌 칸이에요');
   if (g.wrong[i] && g.grid[i] === v) return { correct: false, same: true, state: soloView(g) };
   if (g.solution[i] === v) {
+    if (g.cells + 1 >= g.total) watchFinish(g.nick, g.total, g.startedAt);
     g.grid[i] = v; g.wrong[i] = false; g.cells++;
     if (g.cells >= g.total) soloFinish(g, true);
     return { correct: true, state: soloView(g) };
@@ -551,6 +617,7 @@ function soloHint(g, i) {
 /* ---------- 게임 규칙 ---------- */
 function doMove(room, p, i, v) {
   if (room.status !== 'playing') throw new Error('지금은 입력할 수 없어요');
+  watchMove(p.nick);
   if (p.frozenUntil > Date.now()) throw new Error('얼어붙었어요!');
   if (!Number.isInteger(i) || i < 0 || i > 80 || !Number.isInteger(v) || v < 1 || v > 9) throw new Error('잘못된 입력');
   if (room.puzzle[i] || room.owner[i]) throw new Error('이미 채워진 칸이에요');
@@ -642,9 +709,28 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url.pathname.startsWith('/api/')) {
       const body = await readBody(req);
       const action = url.pathname.slice(5);
+      const rkey = body.pid ? 'p' + body.pid : body.token ? 't' + sha(String(body.token)) : 'i' + clientIp(req);
+      if (!rateLimit(rkey)) return json(res, 429, { error: '요청이 너무 빨라요. 잠시 후 다시 해 주세요' });
 
-      if (action === 'signup' || action === 'login') {
-        try { return json(res, 200, (action === 'signup' ? signup : login)(body.nick, body.pw)); }
+      if (action === 'admin/bans' || action === 'admin/unban') {
+        if (!ADMIN_KEY || body.key !== ADMIN_KEY) return json(res, 403, { error: '권한이 없어요' });
+        if (action === 'admin/unban') {
+          const u = userOf(body.nick || '');
+          if (u) { delete u.banned; u.strikes = 0; delete u.lastStrike; saveAcc(); }
+          return json(res, 200, { ok: !!u });
+        }
+        return json(res, 200, Object.values(accounts.users).filter((u) => u.banned || u.strikes).map((u) => ({ nick: u.nick, strikes: u.strikes || 0, banned: u.banned || null, last: u.lastStrike || null })));
+      }
+
+      if (action === 'signup') {
+        const ip = clientIp(req), now = Date.now();
+        const a = (signupLog.get(ip) || []).filter((t) => now - t < 86400000);
+        if (a.length >= 5) return json(res, 429, { error: '오늘은 더 이상 이 네트워크에서 가입할 수 없어요' });
+        try { const r = signup(body.nick, body.pw); a.push(now); signupLog.set(ip, a); return json(res, 200, r); }
+        catch (e) { return json(res, 400, { error: e.message }); }
+      }
+      if (action === 'login') {
+        try { return json(res, 200, login(body.nick, body.pw)); }
         catch (e) { return json(res, 400, { error: e.message }); }
       }
       if (action === 'me') {
