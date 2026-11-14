@@ -101,6 +101,27 @@ th{color:var(--mute);font-weight:500;font-size:12px}td.n{text-align:left}
 .toast.on{opacity:1}
 .banner{background:#fef3c7;color:#92400e;border-radius:10px;padding:8px 12px;font-size:13px;margin-bottom:10px;text-align:center}
 .hide{display:none!important}
+
+/* 퀘스트 / 시즌 / 관리자 */
+.qrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--edge)}
+.qrow:last-child{border-bottom:0}
+.qrow .qi{flex:1;min-width:0}
+.qrow .qn{font-weight:600;font-size:14px}
+.qrow .qp{font-size:12px;color:var(--mute);margin-top:3px}
+.qbar{height:6px;border-radius:3px;background:var(--edge);margin-top:6px;overflow:hidden}
+.qbar i{display:block;height:100%;background:var(--blue);transition:width .3s}
+.qrow button{flex:0 0 auto;min-width:88px;padding:9px 10px;border-radius:9px;border:0;background:var(--blue);color:#fff;font-weight:700;font-size:13px}
+.qrow button:disabled{background:var(--card);color:var(--mute);border:1px solid var(--edge)}
+.qrow.bonus .qn{color:var(--blue)}
+.prize{font-size:13px;margin:0 0 10px}
+.medal{font-size:16px}
+.urow{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--edge);font-size:14px}
+.urow:last-child{border-bottom:0}
+.urow .un{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.urow .um{font-size:12px;color:var(--mute)}
+.urow button{padding:6px 9px;border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);font-size:12px;font-weight:600}
+.urow button.bad{border-color:var(--bad);color:var(--bad)}
+
 /* 로비 개편 */
 #lobby.authed>h1,#lobby.authed>.sub{display:none}
 #lobby.authed .tabp:not(.on){display:none}
@@ -201,6 +222,11 @@ label.chk span{color:var(--mute);font-size:12px}
         <button class="hero-go" id="solo">▶ 솔로 시작</button>
       </div>
 
+      <div class="card" id="questCard">
+        <div class="ct">📋 오늘의 퀘스트 <span class="cnt" id="questCnt"></span></div>
+        <div id="questList"></div>
+      </div>
+
       <div class="tiles">
         <button class="tile" id="match"><span class="ti">⚡</span><b>랜덤 매칭</b><span class="ts">참가비 10🪙 · 승자 +10</span></button>
         <button class="tile" id="openSheet"><span class="ti">👥</span><b>친구와 대결</b><span class="ts">방 만들기 · 판돈 설정</span></button>
@@ -249,7 +275,31 @@ label.chk span{color:var(--mute);font-size:12px}
         <div class="ct">🎁 출석</div>
         <div class="cap" style="margin:0" id="dailyInfo"></div>
       </div>
+      <button class="btn sec hide" id="adminOpen" style="margin-bottom:10px">🛠 관리자 페이지</button>
       <button class="btn gray" id="logout">로그아웃</button>
+    </section>
+
+    <!-- 관리자 탭 -->
+    <section class="tabp" data-tab="admin">
+      <div class="card" id="adminLock">
+        <div class="ct">🛠 관리자 확인</div>
+        <div class="cap">관리자 키를 입력해 주세요 (키는 이 화면을 닫으면 사라져요)</div>
+        <input type="password" id="adminKey" placeholder="관리자 키" autocomplete="off">
+        <button class="btn" id="adminGo">확인</button>
+      </div>
+      <div id="adminBody" class="hide">
+        <div class="card">
+          <div class="ct">📡 상태</div>
+          <div class="cap" id="adminInfo" style="margin:0 0 10px"></div>
+          <button class="btn gray" id="adminSettle">🏁 시즌 지금 정산</button>
+        </div>
+        <div class="card">
+          <div class="ct">👥 유저 <span class="cnt" id="adminCnt"></span></div>
+          <input type="text" id="adminSearch" placeholder="닉네임 검색" autocomplete="off">
+          <div id="adminUsers"></div>
+        </div>
+      </div>
+      <button class="btn gray" id="adminBack">← 내 정보로</button>
     </section>
   </div>
 
@@ -258,22 +308,40 @@ label.chk span{color:var(--mute);font-size:12px}
     <div class="card">
       <div class="ct">🏆 랭킹</div>
       <div class="seg" style="margin-top:0">
-        <label><input type="radio" name="rm" value="solo" checked><span>솔로</span></label>
-        <label><input type="radio" name="rm" value="race"><span>레이스</span></label>
-        <label><input type="radio" name="rm" value="territory"><span>칸 차지</span></label>
+        <label><input type="radio" name="rs" value="season" checked><span>🔥 시즌</span></label>
+        <label><input type="radio" name="rs" value="all"><span>전체 기록</span></label>
       </div>
-      <div id="rsolo">
+
+      <div id="rseason">
+        <div class="cap" id="seasonInfo" style="margin:0 0 4px"></div>
+        <div class="prize" id="seasonPrize"></div>
         <div class="seg" style="margin-top:0">
-          <label><input type="radio" name="rd" value="easy"><span>쉬움</span></label>
-          <label><input type="radio" name="rd" value="normal" checked><span>보통</span></label>
-          <label><input type="radio" name="rd" value="hard"><span>어려움</span></label>
+          <label><input type="radio" name="rsb" value="solo" checked><span>솔로 최고점</span></label>
+          <label><input type="radio" name="rsb" value="wins"><span>대결 승수</span></label>
         </div>
-        <div class="seg" style="margin-top:0">
-          <label><input type="radio" name="rb" value="time" checked><span>최단 기록</span></label>
-          <label><input type="radio" name="rb" value="score"><span>최고 점수</span></label>
-        </div>
+        <div id="seasonRank"></div>
+        <div class="cap" id="seasonHist" style="margin:12px 0 0"></div>
       </div>
-      <div id="rank"></div>
+
+      <div id="rall" class="hide">
+        <div class="seg" style="margin-top:0">
+          <label><input type="radio" name="rm" value="solo" checked><span>솔로</span></label>
+          <label><input type="radio" name="rm" value="race"><span>레이스</span></label>
+          <label><input type="radio" name="rm" value="territory"><span>칸 차지</span></label>
+        </div>
+        <div id="rsolo">
+          <div class="seg" style="margin-top:0">
+            <label><input type="radio" name="rd" value="easy"><span>쉬움</span></label>
+            <label><input type="radio" name="rd" value="normal" checked><span>보통</span></label>
+            <label><input type="radio" name="rd" value="hard"><span>어려움</span></label>
+          </div>
+          <div class="seg" style="margin-top:0">
+            <label><input type="radio" name="rb" value="time" checked><span>최단 기록</span></label>
+            <label><input type="radio" name="rb" value="score"><span>최고 점수</span></label>
+          </div>
+        </div>
+        <div id="rank"></div>
+      </div>
     </div>
   </section>
 
@@ -478,7 +546,8 @@ function applyShop(s) {
   $('#dailyAmt').textContent = '+' + d.reward + '🪙';
   $('#dailyInfo').textContent = d.canClaim ? d.day + '일째 출석 보상 +' + d.reward + '🪙을 받을 수 있어요' : '오늘 출석 완료 · 내일 또 오면 보너스가 늘어나요 (최대 +70🪙)';
   $('#soloCap').textContent = '솔로 보상 오늘 ' + s.soloToday + '/' + s.soloCap + '🪙';
-  renderShop();
+  $('#adminOpen').classList.toggle('hide', !s.admin);
+  renderShop(); renderQuests(); showNotes(s);
 }
 async function loadShop() { if (!token) return; try { applyShop(await api('shop')); } catch {} }
 $('#dailyBtn').onclick = () => guard(async () => { const r = await api('daily/claim'); applyShop(r); toast('출석 완료! +' + r.claimed + '🪙'); });
@@ -501,7 +570,7 @@ function renderShop() {
     } else if (shopTab === 'effect') {
       const sw = document.createElement('div'); sw.className = 'sw'; sw.textContent = EFFECT_ICON[it.id] || '🎉'; d.appendChild(sw);
     }
-    const pr = document.createElement('div'); pr.className = 'pr'; pr.textContent = it.owned ? (it.price ? '보유 중' : '기본') : '🪙 ' + it.price; d.appendChild(pr);
+    const pr = document.createElement('div'); pr.className = 'pr'; pr.textContent = it.special ? '🏆 시즌 한정' : it.owned ? (it.price ? '보유 중' : '기본') : '🪙 ' + it.price; d.appendChild(pr);
     const btn = document.createElement('button');
     if (!it.owned) { btn.textContent = '구매'; btn.className = 'primary'; btn.disabled = shop.coins < it.price; btn.onclick = () => guard(async () => { applyShop(await api('shop/buy', { kind: shopTab, id: it.id })); toast('구매했어요!'); }); }
     else if (on) {
@@ -553,6 +622,7 @@ function showAuth() {
   user = ''; token = ''; localStorage.removeItem('sd_token');
   $('#authCard').classList.remove('hide'); $('#playCard').classList.add('hide');
   $('#lobby').classList.remove('authed'); $('#nav').classList.add('hide');
+  adminKey = ''; adminData = null; $('#adminLock').classList.remove('hide'); $('#adminBody').classList.add('hide');
 }
 async function auth(kind) {
   const nick = $('#lnick').value.trim(), pw = $('#lpw').value;
@@ -567,6 +637,12 @@ $('#logout').onclick = async () => { try { await api('logout'); } catch {} showA
 
 /* ---------- 로비 ---------- */
 async function loadRank() {
+  const sc = document.querySelector('input[name=rs]:checked').value;
+  $('#rseason').classList.toggle('hide', sc !== 'season'); $('#rall').classList.toggle('hide', sc !== 'all');
+  if (sc === 'season') return loadSeason();
+  return loadRankAll();
+}
+async function loadRankAll() {
   const val = (n) => document.querySelector('input[name=' + n + ']:checked').value;
   const m = val('rm'), d = val('rd'), by = val('rb');
   $('#rsolo').classList.toggle('hide', m !== 'solo');
@@ -628,14 +704,134 @@ async function joinCode(code) {
 $('#match').onclick = () => guard(async () => {
   const r = await api('match'); enter(r.code, r.pid); if (!r.matched) toast('상대를 찾는 중이에요…', 2500);
 });
+/* ---------- 시즌 랭킹 ---------- */
+let seasonEndLocal = 0;
+const fmtMD = (ms) => { const k = new Date(ms + 9 * 3600e3); return (k.getUTCMonth() + 1) + '/' + k.getUTCDate(); };
+function fmtRemain(ms) {
+  if (ms <= 0) return '곧 정산돼요';
+  const m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60;
+  return (d ? d + '일 ' : '') + (d || h ? h + '시간 ' : '') + mm + '분';
+}
+function tickSeason() { const e = $('#seasonRemain'); if (e && seasonEndLocal) e.textContent = fmtRemain(seasonEndLocal - Date.now()); }
+setInterval(tickSeason, 30000);
+async function loadSeason() {
+  const el = $('#seasonRank'), board = document.querySelector('input[name=rsb]:checked').value;
+  try {
+    const sv = await (await fetch('/api/season')).json();
+    seasonEndLocal = Date.now() + sv.remain;
+    const info = $('#seasonInfo'); info.textContent = fmtMD(sv.start) + ' ~ ' + fmtMD(sv.end - 1) + ' 시즌 · 정산까지 ';
+    const rm = document.createElement('b'); rm.id = 'seasonRemain'; rm.textContent = fmtRemain(sv.remain); info.appendChild(rm);
+    $('#seasonPrize').textContent = '🥇 ' + sv.prizes[0] + ' · 🥈 ' + sv.prizes[1] + ' · 🥉 ' + sv.prizes[2] + '🪙 + 한정 칭호 · 참여 보상 ' + sv.part + '🪙';
+    const rows = board === 'solo' ? sv.solo : sv.wins;
+    if (!rows.length) el.innerHTML = '<div class="empty">아직 기록이 없어요. 이번 시즌 첫 주인공이 되어 보세요!</div>';
+    else {
+      el.innerHTML = '<table></table>'; const tb = el.firstChild, hr = document.createElement('tr');
+      ['#', '닉네임', board === 'solo' ? '최고점' : '승수'].forEach((t, k) => { const th = document.createElement('th'); if (k === 1) th.style.textAlign = 'left'; th.textContent = t; hr.appendChild(th); });
+      tb.appendChild(hr);
+      rows.forEach((r, i) => {
+        const tr = document.createElement('tr');
+        const td0 = document.createElement('td'); td0.className = 'medal'; td0.textContent = ['🥇', '🥈', '🥉'][i] || (i + 1); tr.appendChild(td0);
+        const td1 = document.createElement('td'); td1.className = 'n'; if (r.nick === user) td1.style.fontWeight = '700'; setName(td1, r.nick, r.color, r.title); tr.appendChild(td1);
+        const td2 = document.createElement('td'); td2.textContent = board === 'solo' ? r.score + ({ easy: ' (쉬움)', normal: ' (보통)', hard: ' (어려움)' }[r.diff] || '') : r.wins + '승'; tr.appendChild(td2);
+        tb.appendChild(tr);
+      });
+    }
+    const h = sv.hist[0], hl = $('#seasonHist');
+    if (h) {
+      const s1 = h.solo[0], w1 = h.wins[0];
+      hl.textContent = '지난 시즌(' + fmtMD(h.start) + ' ~ ' + fmtMD(h.end - 1) + ') 우승 · 솔로 ' + (s1 ? s1.nick : '-') + ' · 대결 ' + (w1 ? w1.nick : '-');
+    } else hl.textContent = '';
+  } catch {}
+}
+document.querySelectorAll('input[name=rs],input[name=rsb]').forEach((r) => r.addEventListener('change', loadRank));
+
+/* ---------- 일일 퀘스트 / 알림 ---------- */
+function renderQuests() {
+  const q = shop && shop.quests; if (!q) return;
+  const box = $('#questList'); box.innerHTML = '';
+  const mkRow = (name, sub, pct, btnText, enabled, onClick, cls) => {
+    const d = document.createElement('div'); d.className = 'qrow' + (cls ? ' ' + cls : '');
+    const i = document.createElement('div'); i.className = 'qi';
+    const n = document.createElement('div'); n.className = 'qn'; n.textContent = name; i.appendChild(n);
+    if (pct !== null) { const b = document.createElement('div'); b.className = 'qbar'; const f = document.createElement('i'); f.style.width = pct + '%'; b.appendChild(f); i.appendChild(b); }
+    const p = document.createElement('div'); p.className = 'qp'; p.textContent = sub; i.appendChild(p); d.appendChild(i);
+    const bt = document.createElement('button'); bt.textContent = btnText; bt.disabled = !enabled; if (enabled) bt.onclick = onClick; d.appendChild(bt);
+    box.appendChild(d);
+  };
+  let done = 0;
+  q.list.forEach((it) => {
+    if (it.done) done++;
+    mkRow(it.name, it.prog + ' / ' + it.goal + ' · 보상 ' + it.reward + '🪙', Math.min(100, Math.round((it.prog / it.goal) * 100)),
+      it.claimed ? '받음 ✓' : it.done ? '받기 +' + it.reward : '진행 중', it.done && !it.claimed,
+      () => guard(async () => { const r = await api('quest/claim', { id: it.id }); applyShop(r); toast('퀘스트 보상 +' + r.claimed + '🪙'); }));
+  });
+  const b = q.bonus;
+  mkRow('🎁 전부 완료 보너스', '3개를 모두 완료하면 +' + b.reward + '🪙', null, b.claimed ? '받음 ✓' : b.ready ? '받기 +' + b.reward : '잠김', b.ready,
+    () => guard(async () => { const r = await api('quest/claim', { id: 'bonus' }); applyShop(r); toast('보너스 +' + r.claimed + '🪙'); }), 'bonus');
+  $('#questCnt').textContent = done + '/' + q.list.length + ' 완료';
+}
+let notesBusy = false;
+async function showNotes(s) {
+  if (notesBusy || !s.notes || !s.notes.length) return;
+  notesBusy = true;
+  const list = s.notes.slice();
+  try { await api('notes/ack'); list.forEach((n, i) => setTimeout(() => toast(n, 4200), i * 4400)); } catch {}
+  notesBusy = false;
+}
+
+/* ---------- 관리자 ---------- */
+let adminKey = '', adminData = null;
+const adminCall = (p, extra = {}) => api('admin/' + p, { key: adminKey, ...extra });
+$('#adminOpen').onclick = () => setTab('admin');
+$('#adminBack').onclick = () => setTab('me');
+$('#adminGo').onclick = () => guard(async () => {
+  adminKey = $('#adminKey').value; $('#adminKey').value = '';
+  try { await adminCall('auth'); } catch (e) { adminKey = ''; throw e; }
+  $('#adminLock').classList.add('hide'); $('#adminBody').classList.remove('hide'); await adminLoad();
+});
+$('#adminKey').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#adminGo').click(); });
+async function adminLoad() { adminData = await adminCall('users'); renderAdmin(); }
+function renderAdmin() {
+  if (!adminData) return;
+  const d = adminData, db = d.db || {};
+  $('#adminInfo').textContent = '전체 ' + d.total + '명 · DB ' + (db.on ? '연결됨 (저장 ' + (db.saves || 0) + '회' + (db.lastErr ? ', 오류: ' + db.lastErr : '') + ')' : '미사용') + ' · 시즌 ' + d.season.id + ' (정산 ' + fmtMD(d.season.end - 1) + ' 종료)';
+  const q = $('#adminSearch').value.trim().toLowerCase(), box = $('#adminUsers'); box.innerHTML = '';
+  const rows = d.users.filter((u) => !q || u.nick.toLowerCase().includes(q));
+  $('#adminCnt').textContent = rows.length + '명';
+  rows.forEach((u) => {
+    const r = document.createElement('div'); r.className = 'urow';
+    const n = document.createElement('div'); n.className = 'un';
+    n.textContent = (u.online ? '🟢 ' : '⚪ ') + u.nick + (u.admin ? ' 🛠' : '');
+    const m = document.createElement('div'); m.className = 'um'; m.textContent = '🪙' + u.coins + (u.strikes ? ' · ⚠️' + u.strikes : '') + (u.banned ? ' · 🚫' + u.banned : ''); n.appendChild(m); r.appendChild(n);
+    const cb = document.createElement('button'); cb.textContent = '코인'; cb.onclick = () => guard(async () => {
+      const v = prompt(u.nick + ' 코인 변화량 (지급은 100, 회수는 -50 처럼)'); if (v === null) return;
+      const x = await adminCall('coins', { nick: u.nick, delta: Number(v) }); toast(u.nick + ' → ' + x.coins + '🪙'); await adminLoad();
+    }); r.appendChild(cb);
+    if (!u.admin) {
+      const bb = document.createElement('button'); bb.textContent = u.banned ? '해제' : '정지'; if (!u.banned) bb.className = 'bad';
+      bb.onclick = () => guard(async () => {
+        if (u.banned) await adminCall('unban', { nick: u.nick });
+        else { const why = prompt(u.nick + ' 계정을 정지할까요? 사유를 적어 주세요 (취소하면 중단)'); if (why === null) return; await adminCall('ban', { nick: u.nick, reason: why }); }
+        await adminLoad();
+      }); r.appendChild(bb);
+    }
+    box.appendChild(r);
+  });
+}
+$('#adminSearch').addEventListener('input', renderAdmin);
+$('#adminSettle').onclick = () => guard(async () => {
+  if (!confirm('지금 시즌을 정산하고 새 시즌을 시작할까요?\n1~3위 보상과 한정 칭호가 바로 지급돼요.')) return;
+  await adminCall('season/settle'); toast('정산했어요'); await adminLoad(); loadShop();
+});
+
 /* ---------- 탭 / 시트 / 대기 방 목록 ---------- */
 let curTab = 'play';
 function setTab(t) {
   curTab = t;
   document.querySelectorAll('.tabp').forEach((e) => e.classList.toggle('on', e.dataset.tab === t));
-  document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t));
+  document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.tab === (t === 'admin' ? 'me' : t)));
   window.scrollTo(0, 0);
-  if (t === 'rank') loadRank(); else if (t === 'me') { loadMyStats(); loadShop(); } else if (t === 'shop') loadShop(); else pollLobby();
+  if (t === 'rank') loadRank(); else if (t === 'admin') { if (adminKey) adminLoad().catch(() => {}); } else if (t === 'me') { loadMyStats(); loadShop(); } else if (t === 'shop') loadShop(); else pollLobby();
 }
 document.querySelectorAll('#nav button').forEach((b) => b.addEventListener('click', () => setTab(b.dataset.tab)));
 function openSheet() { $('#sheet').classList.remove('hide'); }

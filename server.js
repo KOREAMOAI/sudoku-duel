@@ -81,6 +81,7 @@ async function initDb() {
 async function shutdown() {
   console.log('[db] 종료 신호 — 마지막 저장 중');
   const kill = setTimeout(() => process.exit(0), 7000);
+  try { refundLiveEscrow(); fs.writeFileSync(ACC_FILE, JSON.stringify(accounts)); fs.writeFileSync(RANK_FILE, JSON.stringify(stats)); } catch {}
   try { clearTimeout(remoteTimer); remoteTimer = null; if (DB_ON && remoteReady) { dirty.acc = dirty.stats = true; await flushRemote(); } } catch {}
   clearTimeout(kill); process.exit(0);
 }
@@ -187,6 +188,7 @@ function login(nick, pw) {
 }
 
 /* ---------- 부정행위 방어 ---------- */
+const SIGNUP_CAP = +process.env.SIGNUP_PER_DAY || 5, PVP_MIN_MS = process.env.PVP_MIN_MS !== undefined ? +process.env.PVP_MIN_MS : 60000;
 const AC_ON = process.env.ANTICHEAT !== 'off', STRIKES_TO_BAN = 2, ADMIN_KEY = process.env.ADMIN_KEY || '';
 const moveLog = new Map(); // nick -> 최근 입력 시각들
 const reqLog = new Map();  // nick -> 최근 1초 요청 시각들
@@ -283,7 +285,10 @@ const SHOP = {
   },
 };
 const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
-const getItem = (kind, id) => (hasOwn(SHOP, kind) && hasOwn(SHOP[kind], String(id)) ? SHOP[kind][String(id)] : null);
+const getItem = (kind, id) => {
+  if (kind === 'title') { const t = seasonTitle(id); if (t) return t; }
+  return hasOwn(SHOP, kind) && hasOwn(SHOP[kind], String(id)) ? SHOP[kind][String(id)] : null;
+};
 function eco(nick) {
   const u = userOf(nick);
   if (!u) return null;
@@ -313,9 +318,10 @@ function shopState(nick) {
   const nextDay = e.daily.last === kstDay(-1) ? e.daily.streak + 1 : 1;
   const catalog = {};
   for (const k of Object.keys(SHOP)) catalog[k] = Object.entries(SHOP[k]).map(([id, it]) => ({ id, ...it, owned: ownedItem(e, k, id) }));
+  catalog.title = catalog.title.concat(e.owned.title.filter((id) => seasonTitle(id)).map((id) => ({ id, ...seasonTitle(id), owned: true })));
   const th = getItem('theme', e.eq.theme) || SHOP.theme.light;
   return {
-    coins: e.coins, eq: e.eq, cosm: cosm(nick), catalog,
+    coins: e.coins, eq: e.eq, cosm: cosm(nick), catalog, quests: questView(nick), notes: e.notes || [], admin: isAdminNick(nick),
     eqTheme: { id: e.eq.theme, base: th.base, vars: th.vars },
     daily: { canClaim, reward: dailyReward(nextDay), day: nextDay },
     soloToday: e.daily.soloDate === day ? e.daily.soloEarned : 0, soloCap: SOLO_DAILY_CAP,
@@ -324,6 +330,7 @@ function shopState(nick) {
 function buyItem(nick, kind, id) {
   const e = eco(nick), it = getItem(kind, id);
   if (!it) throw new Error('없는 아이템이에요');
+  if (it.special || it.price < 0) throw new Error('구매할 수 없는 한정 아이템이에요');
   if (ownedItem(e, kind, id)) throw new Error('이미 가지고 있어요');
   if (e.coins < it.price) throw new Error('코인이 부족해요');
   e.coins -= it.price; e.owned[kind].push(String(id)); saveAcc();
@@ -352,6 +359,183 @@ function betCheck(room, extraNick) {
   const nicks = room.players.map((p) => p.nick);
   if (extraNick) nicks.push(extraNick);
   return nicks.find((n) => coinsOf(n) < room.bet) || null;
+}
+
+/* ---------- 알림 노트 / 판돈 보관 기록 ---------- */
+function pushNote(nick, text) {
+  const e = eco(nick); if (!e) return;
+  e.notes = (e.notes || []).slice(-9); e.notes.push(text); saveAcc();
+}
+// 대결이 시작될 때 걸린 판돈을 계정 데이터에 같이 기록해 두어, 서버가 중간에 꺼져도 돌려줄 수 있게 한다
+function escrowSet(room) {
+  accounts.escrow = accounts.escrow || {};
+  accounts.escrow[room.code] = { bet: room.bet, nicks: room.players.map((p) => p.nick), at: Date.now() };
+  saveAcc();
+}
+function escrowClear(code) { if (accounts.escrow && accounts.escrow[code]) { delete accounts.escrow[code]; saveAcc(); } }
+function refundEscrowEntry(code, why) {
+  const r = accounts.escrow && accounts.escrow[code]; if (!r) return 0;
+  let n = 0;
+  for (const nick of r.nicks) { const e = eco(nick); if (!e) continue; e.coins += r.bet; n++; pushNote(nick, why + ' · 판돈 ' + r.bet + '🪙을 돌려받았어요'); }
+  delete accounts.escrow[code]; saveAcc(); return n;
+}
+function refundOrphanEscrow() { // 서버 시작 직후: 이 서버의 메모리에는 없는 방의 판돈을 환불
+  let n = 0;
+  for (const code of Object.keys(accounts.escrow || {})) n += refundEscrowEntry(code, '서버가 다시 시작되어 끊긴 대결');
+  if (n) console.log('[escrow] 끊긴 대결의 판돈을 환불했어요:', n, '명');
+}
+function refundLiveEscrow() { // 종료 신호(배포 등) 때: 진행 중인 대결의 판돈 환불
+  for (const room of rooms.values()) {
+    if (room.escrow > 0 && (room.status === 'countdown' || room.status === 'playing')) { refundEscrowEntry(room.code, '서버 점검으로 끊긴 대결'); room.escrow = 0; }
+  }
+}
+
+/* ---------- 일일 퀘스트 ---------- */
+const QUEST_POOL = [
+  { id: 'solo1', fam: 'solo', ev: 'solo_clear', goal: 1, reward: 30, name: '솔로 1판 클리어' },
+  { id: 'solo2', fam: 'solo', ev: 'solo_clear', goal: 2, reward: 50, name: '솔로 2판 클리어' },
+  { id: 'clean', fam: 'clean', ev: 'solo_clean', goal: 1, reward: 60, name: '실수 없이 솔로 1판 클리어' },
+  { id: 'nohint', fam: 'nohint', ev: 'solo_nohint', goal: 1, reward: 40, name: '힌트 없이 솔로 1판 클리어' },
+  { id: 'hard', fam: 'hard', ev: 'solo_hard', goal: 1, reward: 60, name: '어려움 솔로 1판 클리어' },
+  { id: 'play2', fam: 'play', ev: 'pvp_play', goal: 2, reward: 40, name: '대결 2판 플레이' },
+  { id: 'win1', fam: 'win', ev: 'pvp_win', goal: 1, reward: 50, name: '대결 1승 거두기' },
+  { id: 'rwin', fam: 'win', ev: 'race_win', goal: 1, reward: 50, name: '레이스에서 1승' },
+  { id: 'twin', fam: 'win', ev: 'terr_win', goal: 1, reward: 50, name: '칸 차지에서 1승' },
+];
+const QUEST_BONUS = 50;
+const questDef = (id) => QUEST_POOL.find((q) => q.id === id);
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function pickQuests() { // 종류가 겹치지 않게 3개, 대결 퀘스트는 최대 1개 (상대가 없어도 깰 수 있게)
+  const chosen = []; let pvp = 0;
+  for (const f of shuffle([...new Set(QUEST_POOL.map((q) => q.fam))])) {
+    const isPvp = f === 'play' || f === 'win';
+    if (isPvp && pvp >= 1) continue;
+    const m = QUEST_POOL.filter((q) => q.fam === f);
+    chosen.push(m[crypto.randomInt(m.length)].id); if (isPvp) pvp++;
+    if (chosen.length === 3) break;
+  }
+  return chosen;
+}
+function questState(nick) {
+  const e = eco(nick), day = kstDay();
+  if (!e.quest || e.quest.day !== day) { e.quest = { day, list: pickQuests().map((id) => ({ id, prog: 0, claimed: false })), bonus: false }; saveAcc(); }
+  return e.quest;
+}
+function questEvent(nick, ev, n = 1) {
+  if (!eco(nick)) return;
+  const q = questState(nick); let ch = false;
+  for (const it of q.list) { const d = questDef(it.id); if (d && d.ev === ev && it.prog < d.goal) { it.prog = Math.min(d.goal, it.prog + n); ch = true; } }
+  if (ch) saveAcc();
+}
+function questView(nick) {
+  const q = questState(nick);
+  const list = q.list.map((it) => { const d = questDef(it.id); return { id: it.id, name: d.name, goal: d.goal, prog: it.prog, reward: d.reward, done: it.prog >= d.goal, claimed: it.claimed }; });
+  return { list, bonus: { reward: QUEST_BONUS, ready: list.every((x) => x.done) && !q.bonus, claimed: q.bonus } };
+}
+function claimQuest(nick, id) {
+  const q = questState(nick), e = eco(nick);
+  if (id === 'bonus') {
+    if (q.bonus) throw new Error('이미 받았어요');
+    if (!q.list.every((it) => it.prog >= questDef(it.id).goal)) throw new Error('퀘스트를 모두 완료해야 해요');
+    q.bonus = true; e.coins += QUEST_BONUS; saveAcc(); return QUEST_BONUS;
+  }
+  const it = q.list.find((x) => x.id === id);
+  if (!it) throw new Error('없는 퀘스트예요');
+  const d = questDef(id);
+  if (it.claimed) throw new Error('이미 받았어요');
+  if (it.prog < d.goal) throw new Error('아직 완료하지 않았어요');
+  it.claimed = true; e.coins += d.reward; saveAcc(); return d.reward;
+}
+
+/* ---------- 시즌 랭킹 (월요일 0시 / 금요일 0시 KST 기준, 4일 + 3일) ---------- */
+const SEASON_PRIZES = [500, 300, 150], SEASON_PART = 30, PAIR_CAP = 6;
+function seasonBounds(ms = Date.now()) {
+  const k = new Date(ms + 9 * 3600e3), dow = k.getUTCDay() || 7; // 월=1 … 일=7
+  const back = dow >= 5 ? dow - 5 : dow - 1, days = dow >= 5 ? 3 : 4;
+  const startK = Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate() - back);
+  const start = startK - 9 * 3600e3;
+  return { id: new Date(startK).toISOString().slice(0, 10), start, end: start + days * 864e5 };
+}
+const newSeason = (b) => ({ id: b.id, start: b.start, end: b.end, solo: {}, wins: {}, plays: {}, pairs: {} });
+function seasonBoards(s) {
+  const ok = (n) => userOf(n) && !isBanned(n);
+  const solo = Object.entries(s.solo).filter(([n]) => ok(n)).map(([n, v]) => ({ nick: userOf(n).nick, score: v.score, diff: v.diff, clears: v.clears }))
+    .sort((a, b) => b.score - a.score || a.nick.localeCompare(b.nick));
+  const wins = Object.entries(s.wins).filter(([n, c]) => c > 0 && ok(n)).map(([n, c]) => ({ nick: userOf(n).nick, wins: c }))
+    .sort((a, b) => b.wins - a.wins || a.nick.localeCompare(b.nick));
+  return { solo, wins };
+}
+const seasonTitleId = (sid, kind, rank) => 's_' + sid.replace(/-/g, '') + '_' + kind + '_' + rank;
+const SEASON_T_RE = /^s_(\d{4})(\d{2})(\d{2})_(solo|win)_([123])$/;
+function seasonTitle(id) {
+  const m = SEASON_T_RE.exec(String(id)); if (!m) return null;
+  return { name: ['🥇', '🥈', '🥉'][m[5] - 1] + ' ' + (+m[2]) + '/' + (+m[3]) + ' 시즌 ' + (m[4] === 'solo' ? '솔로' : '대결') + ' ' + m[5] + '위', price: -1, special: true };
+}
+function settleSeason(s) {
+  const { solo, wins } = seasonBoards(s), awarded = new Set();
+  const give = (rows, kind, label) => rows.slice(0, 3).forEach((r, i) => {
+    const e = eco(r.nick), tid = seasonTitleId(s.id, kind, i + 1);
+    e.coins += SEASON_PRIZES[i]; if (!e.owned.title.includes(tid)) e.owned.title.push(tid);
+    pushNote(r.nick, '🏆 시즌 정산 · ' + label + ' ' + (i + 1) + '위! +' + SEASON_PRIZES[i] + '🪙 (한정 칭호 획득)');
+    awarded.add(r.nick);
+  });
+  give(solo, 'solo', '솔로 최고점'); give(wins, 'win', '대결 승수');
+  for (const n of new Set([...Object.keys(s.solo), ...Object.keys(s.wins), ...Object.keys(s.plays || {})])) {
+    const u = userOf(n); if (!u || u.banned || awarded.has(u.nick)) continue;
+    const clears = (s.solo[n] || {}).clears || 0, plays = (s.plays || {})[n] || 0;
+    if (clears >= 3 || plays >= 2) { eco(u.nick).coins += SEASON_PART; pushNote(u.nick, '🎖️ 시즌 참여 보상 +' + SEASON_PART + '🪙'); }
+  }
+  accounts.seasonHist = accounts.seasonHist || [];
+  accounts.seasonHist.unshift({ id: s.id, start: s.start, end: s.end, solo: solo.slice(0, 3), wins: wins.slice(0, 3) });
+  accounts.seasonHist.length = Math.min(accounts.seasonHist.length, 8);
+  saveAcc();
+  console.log('[season] 정산 완료', s.id);
+}
+function ensureSeason() {
+  const b = seasonBounds();
+  if (!accounts.season) { accounts.season = newSeason(b); saveAcc(); }
+  else if (accounts.season.id !== b.id) { settleSeason(accounts.season); accounts.season = newSeason(b); saveAcc(); }
+  return accounts.season;
+}
+function seasonSolo(nick, score, diff) {
+  const s = ensureSeason(), v = s.solo[nick] || (s.solo[nick] = { score: 0, diff: '', clears: 0 });
+  v.clears++; if (score > v.score) { v.score = score; v.diff = diff; } saveAcc();
+}
+// 대결 종료 처리: 60초 이상 진행된 판만 퀘스트/시즌에 반영하고, 같은 상대와는 시즌당 6판까지만 인정
+function onPvpEnd(room, winner, reason) {
+  if (room.players.length < 2 || !room.startedAt || room.endedAt - room.startedAt < PVP_MIN_MS) return;
+  const s = ensureSeason(), key = room.players.map((p) => p.nick).sort().join('|');
+  s.pairs = s.pairs || {}; s.plays = s.plays || {};
+  const counted = (s.pairs[key] = (s.pairs[key] || 0) + 1) <= PAIR_CAP;
+  if (!counted) { saveAcc(); return; }
+  for (const p of room.players) { s.plays[p.nick] = (s.plays[p.nick] || 0) + 1; questEvent(p.nick, 'pvp_play'); }
+  if (winner && ['complete', 'board', 'lives'].includes(reason)) {
+    const w = room.players.find((p) => p.idx === winner);
+    if (w) { s.wins[w.nick] = (s.wins[w.nick] || 0) + 1; questEvent(w.nick, 'pvp_win'); questEvent(w.nick, room.mode === 'territory' ? 'terr_win' : 'race_win'); }
+  }
+  saveAcc();
+}
+function seasonView() {
+  const s = ensureSeason(), b = seasonBoards(s), now = Date.now();
+  const dec = (r) => ({ ...r, ...cosm(r.nick) });
+  return { id: s.id, start: s.start, end: s.end, now, remain: Math.max(0, s.end - now), prizes: SEASON_PRIZES, part: SEASON_PART,
+    solo: b.solo.slice(0, 10).map(dec), wins: b.wins.slice(0, 10).map(dec), hist: (accounts.seasonHist || []).slice(0, 3) };
+}
+
+/* ---------- 관리자 (닉네임 + 관리자 키, 둘 다 맞아야 함) ---------- */
+const ADMIN_NICKS = (process.env.ADMIN_NICK || 'KOREAMOAI,KOROEAMOAI').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
+const isAdminNick = (n) => !!n && ADMIN_NICKS.includes(String(n).toLowerCase());
+const adminFails = new Map();
+function adminAuth(nick, req, key) {
+  if (!isAdminNick(nick)) return { s: 403, e: '권한이 없어요' };
+  const ip = clientIp(req), f = adminFails.get(ip) || { n: 0, until: 0 };
+  if (f.until > Date.now()) return { s: 429, e: '잠시 후 다시 시도해 주세요' };
+  const h = (x) => crypto.createHash('sha256').update(String(x || '')).digest();
+  if (!ADMIN_KEY || !crypto.timingSafeEqual(h(key), h(ADMIN_KEY))) {
+    f.n++; if (f.n >= 5) { f.until = Date.now() + 10 * 60 * 1000; f.n = 0; } adminFails.set(ip, f);
+    return { s: 403, e: '관리자 키가 맞지 않아요' };
+  }
+  adminFails.delete(ip); return null;
 }
 
 /* ---------- 스도쿠 생성 ---------- */
@@ -456,6 +640,7 @@ function startGame(room) {
   if (room.bet > 0) {
     for (const p of room.players) addCoins(p.nick, -room.bet);
     room.escrow = room.bet * room.players.length;
+    escrowSet(room);
   }
   const { solution, puzzle } = generate(room.difficulty);
   room.solution = solution;
@@ -506,8 +691,9 @@ function finish(room, winner, reason) {
       room.players.forEach((p) => addCoins(p.nick, room.bet));
       room.payout = { winner: 0, amount: 0, refund: true };
     }
-    room.escrow = 0;
+    room.escrow = 0; escrowClear(room.code);
   }
+  onPvpEnd(room, winner, reason);
   room.players.forEach((p) => (p.rematch = false));
   broadcast(room);
 }
@@ -638,6 +824,11 @@ function soloFinish(g, won) {
   if (won) {
     r.score = soloScore(g, sec);
     s.done++; s.totalTime += time;
+    seasonSolo(g.nick, r.score, g.difficulty);
+    questEvent(g.nick, 'solo_clear');
+    if (!g.mistakes) questEvent(g.nick, 'solo_clean');
+    if (!g.hints) questEvent(g.nick, 'solo_nohint');
+    if (g.difficulty === 'hard') questEvent(g.nick, 'solo_hard');
     if (!g.hints && (!s.bestTime || time < s.bestTime)) { s.bestTime = time; r.newBestTime = true; }
     if (r.score > s.bestScore) { s.bestScore = r.score; r.newBestScore = true; }
     const e = eco(g.nick), day = kstDay(), full = SOLO_REWARD[g.difficulty];
@@ -760,6 +951,7 @@ const server = http.createServer(async (req, res) => {
       return res.end(fs.readFileSync(path.join(__dirname, 'index.html')));
     }
     if (req.method === 'GET' && url.pathname === '/favicon.ico') { res.writeHead(204); return res.end(); }
+    if (req.method === 'GET' && url.pathname === '/api/season') return json(res, 200, seasonView());
     if (req.method === 'GET' && url.pathname === '/api/ranking') {
       return json(res, 200, rankingList(url.searchParams.get('mode') || 'race', url.searchParams.get('diff') || 'normal', url.searchParams.get('by') || 'time'));
     }
@@ -789,35 +981,10 @@ const server = http.createServer(async (req, res) => {
       const rkey = body.pid ? 'p' + body.pid : body.token ? 't' + sha(String(body.token)) : 'i' + clientIp(req);
       if (!rateLimit(rkey)) return json(res, 429, { error: '요청이 너무 빨라요. 잠시 후 다시 해 주세요' });
 
-      if (action === 'admin/dbstatus' || action === 'admin/restore') {
-        if (!ADMIN_KEY || body.key !== ADMIN_KEY) return json(res, 403, { error: '권한이 없어요' });
-        if (action === 'admin/dbstatus') return json(res, 200, { ...dbInfo, users: Object.keys(accounts.users).length, ranked: Object.keys(stats).length });
-        if (!DB_ON) return json(res, 400, { error: 'DB가 설정되지 않았어요' });
-        try {
-          const day = String(body.day || '');
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return json(res, 400, { error: 'day는 YYYY-MM-DD 형식이에요' });
-          const a = await dbCmd(['GET', 'sd:backup:accounts:' + day]), t = await dbCmd(['GET', 'sd:backup:stats:' + day]);
-          if (!a || !t) return json(res, 404, { error: '해당 날짜의 백업이 없어요' });
-          accounts = JSON.parse(a); accounts.users = accounts.users || {}; accounts.sessions = accounts.sessions || {};
-          stats = JSON.parse(t); migrateStats();
-          dirty.acc = dirty.stats = true; await flushRemote();
-          return json(res, 200, { ok: true, users: Object.keys(accounts.users).length });
-        } catch (e) { return json(res, 500, { error: e.message }); }
-      }
-      if (action === 'admin/bans' || action === 'admin/unban') {
-        if (!ADMIN_KEY || body.key !== ADMIN_KEY) return json(res, 403, { error: '권한이 없어요' });
-        if (action === 'admin/unban') {
-          const u = userOf(body.nick || '');
-          if (u) { delete u.banned; u.strikes = 0; delete u.lastStrike; saveAcc(); }
-          return json(res, 200, { ok: !!u });
-        }
-        return json(res, 200, Object.values(accounts.users).filter((u) => u.banned || u.strikes).map((u) => ({ nick: u.nick, strikes: u.strikes || 0, banned: u.banned || null, last: u.lastStrike || null })));
-      }
-
       if (action === 'signup') {
         const ip = clientIp(req), now = Date.now();
         const a = (signupLog.get(ip) || []).filter((t) => now - t < 86400000);
-        if (a.length >= 5) return json(res, 429, { error: '오늘은 더 이상 이 네트워크에서 가입할 수 없어요' });
+        if (a.length >= SIGNUP_CAP) return json(res, 429, { error: '오늘은 더 이상 이 네트워크에서 가입할 수 없어요' });
         try { const r = signup(body.nick, body.pw); a.push(now); signupLog.set(ip, a); return json(res, 200, r); }
         catch (e) { return json(res, 400, { error: e.message }); }
       }
@@ -827,7 +994,7 @@ const server = http.createServer(async (req, res) => {
       }
       if (action === 'me') {
         const nick = nickFromToken(body.token);
-        return nick ? json(res, 200, { nick, coins: coinsOf(nick) }) : json(res, 401, { error: '로그인이 필요해요' });
+        return nick ? json(res, 200, { nick, coins: coinsOf(nick), admin: isAdminNick(nick) }) : json(res, 401, { error: '로그인이 필요해요' });
       }
       if (action === 'logout') {
         if (body.token) { delete accounts.sessions[sha(String(body.token))]; saveAcc(); }
@@ -835,6 +1002,55 @@ const server = http.createServer(async (req, res) => {
       }
       const authNick = nickFromToken(body.token);
       if (authNick) seen.set(authNick, Date.now());
+
+      if (action.startsWith('admin/')) {
+        const bad = adminAuth(authNick, req, body.key);
+        if (bad) return json(res, bad.s, { error: bad.e });
+        const a = action.slice(6);
+        try {
+          if (a === 'auth') return json(res, 200, { ok: true });
+          if (a === 'users') {
+            const t = Date.now();
+            const users = Object.values(accounts.users).map((u) => ({
+              nick: u.nick, coins: coinsOf(u.nick), strikes: u.strikes || 0, banned: u.banned ? (u.banned.reason || '정지') : '',
+              created: u.created || 0, online: !!seen.get(u.nick) && t - seen.get(u.nick) < 45000, admin: isAdminNick(u.nick),
+            })).sort((x, y) => y.created - x.created).slice(0, 500);
+            const s = ensureSeason();
+            return json(res, 200, { users, total: Object.keys(accounts.users).length, db: { ...dbInfo }, season: { id: s.id, end: s.end } });
+          }
+          if (a === 'ban' || a === 'unban' || a === 'coins') {
+            const u = userOf(body.nick || '');
+            if (!u) throw new Error('없는 계정이에요');
+            if (a === 'ban') {
+              if (isAdminNick(u.nick)) throw new Error('관리자 계정은 정지할 수 없어요');
+              banAccount(u.nick, '관리자 정지' + (body.reason ? ': ' + String(body.reason).slice(0, 60) : ''));
+            } else if (a === 'unban') { delete u.banned; u.strikes = 0; delete u.lastStrike; moveLog.delete(u.nick); saveAcc(); }
+            else {
+              const d = Math.trunc(Number(body.delta));
+              if (!Number.isFinite(d) || d === 0 || Math.abs(d) > 100000) throw new Error('코인 변화량은 1~100000 사이의 정수로 입력해 주세요');
+              addCoins(u.nick, d); pushNote(u.nick, '관리자가 코인 ' + Math.abs(d) + '🪙을 ' + (d > 0 ? '지급' : '회수') + '했어요');
+            }
+            return json(res, 200, { ok: true, coins: coinsOf(u.nick) });
+          }
+          if (a === 'season/settle') {
+            settleSeason(accounts.season || ensureSeason()); accounts.season = newSeason(seasonBounds()); saveAcc();
+            return json(res, 200, { ok: true });
+          }
+          if (a === 'dbstatus') return json(res, 200, { ...dbInfo, users: Object.keys(accounts.users).length, ranked: Object.keys(stats).length });
+          if (a === 'restore') {
+            if (!DB_ON) throw new Error('DB가 설정되지 않았어요');
+            const day = String(body.day || '');
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new Error('day는 YYYY-MM-DD 형식이에요');
+            const ra = await dbCmd(['GET', 'sd:backup:accounts:' + day]), rt = await dbCmd(['GET', 'sd:backup:stats:' + day]);
+            if (!ra || !rt) throw new Error('해당 날짜의 백업이 없어요');
+            accounts = JSON.parse(ra); accounts.users = accounts.users || {}; accounts.sessions = accounts.sessions || {};
+            stats = JSON.parse(rt); migrateStats();
+            dirty.acc = dirty.stats = true; await flushRemote();
+            return json(res, 200, { ok: true, users: Object.keys(accounts.users).length });
+          }
+          return json(res, 404, { error: 'unknown' });
+        } catch (e) { return json(res, 400, { error: e.message }); }
+      }
       if (['create', 'join', 'match'].includes(action) && !authNick) return json(res, 401, { error: '로그인이 필요해요' });
 
       if (action === 'lobby') {
@@ -856,13 +1072,15 @@ const server = http.createServer(async (req, res) => {
         if (!rm) return json(res, 404, { error: '해당 코드의 방이 없어요' });
         return json(res, 200, { mode: rm.mode, difficulty: rm.difficulty, bet: rm.bet || 0, fixed: !!rm.fixed, host: rm.players[0].nick, full: rm.players.length >= 2 });
       }
-      if (action === 'shop' || action.startsWith('shop/') || action === 'daily/claim') {
+      if (action === 'shop' || action.startsWith('shop/') || action === 'daily/claim' || action === 'quest/claim' || action === 'notes/ack') {
         if (!authNick) return json(res, 401, { error: '로그인이 필요해요' });
         try {
           let claimed = 0;
           if (action === 'shop/buy') buyItem(authNick, body.kind, body.id);
           else if (action === 'shop/equip') equipItem(authNick, body.kind, body.id);
           else if (action === 'daily/claim') claimed = claimDaily(authNick);
+          else if (action === 'quest/claim') claimed = claimQuest(authNick, String(body.id || ''));
+          else if (action === 'notes/ack') { const e = eco(authNick); if (e && e.notes && e.notes.length) { e.notes = []; saveAcc(); } }
           return json(res, 200, { ...shopState(authNick), claimed });
         } catch (e) { return json(res, 400, { error: e.message }); }
       }
@@ -1007,4 +1225,8 @@ setInterval(() => {
   for (const [n, g] of solos) if (now - g.updated > 3 * 3600 * 1000) solos.delete(n);
 }, 5000);
 
-initDb().then(() => server.listen(PORT, '0.0.0.0', () => console.log('스도쿠 듀얼 서버 실행 중: http://localhost:' + PORT)));
+initDb().then(() => {
+  refundOrphanEscrow(); ensureSeason();
+  setInterval(ensureSeason, 20000).unref();
+  server.listen(PORT, '0.0.0.0', () => console.log('스도쿠 듀얼 서버 실행 중: http://localhost:' + PORT));
+});
