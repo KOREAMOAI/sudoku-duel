@@ -107,7 +107,7 @@ function st(nick) {
   return u;
 }
 function bump(nick, mode, key) { st(nick)[mode === 'territory' ? 'territory' : 'race'][key]++; }
-function rankingList(mode, diff, by) {
+function rankingList(mode, diff, by, full) {
   const rows = [];
   for (const nick of Object.keys(stats)) {
     if (isBanned(nick)) continue;
@@ -123,7 +123,7 @@ function rankingList(mode, diff, by) {
   }
   if (mode === 'solo') rows.sort((a, b) => (by === 'score' ? b.value - a.value : a.value - b.value) || a.nick.localeCompare(b.nick));
   else rows.sort((a, b) => b.wins - a.wins || a.losses - b.losses || a.nick.localeCompare(b.nick));
-  return rows.slice(0, 20);
+  return full ? rows : rows.slice(0, 20);
 }
 
 /* ---------- 계정 ---------- */
@@ -306,11 +306,26 @@ function addCoins(nick, n) { const e = eco(nick); if (!e) return; e.coins = Math
 const kstDay = (off = 0) => new Date(Date.now() + 9 * 3600e3 + off * 864e5).toISOString().slice(0, 10);
 const dailyReward = (streak) => 30 + Math.min(streak - 1, 4) * 10;
 function ownedItem(e, kind, id) { const it = getItem(kind, id); return !!it && (it.price === 0 || e.owned[kind].includes(id)); }
+const PROFILE_ICONS = ['🙂','😎','🤓','😺','🐶','🦊','🐼','🐯','🐸','🐧','🦄','🐲','🦉','🐙','🔥','⭐','🌙','⚡','🍀','🎯','🧠','👑','🚀','🎲'];
+const MSG_MAX = 30;
+function profileOf(nick) {
+  const u = userOf(nick), p = (u && u.profile) || {};
+  return { icon: PROFILE_ICONS.includes(p.icon) ? p.icon : '', msg: typeof p.msg === 'string' ? p.msg : '' };
+}
+function setProfile(nick, icon, msg) {
+  const u = userOf(nick); if (!u) throw new Error('계정을 찾을 수 없어요');
+  icon = String(icon || '');
+  if (icon && !PROFILE_ICONS.includes(icon)) throw new Error('고를 수 없는 아이콘이에요');
+  msg = Array.from(String(msg || '').replace(/[\u0000-\u001f\u007f<>]/g, ' ').replace(/\s+/g, ' ').trim()).slice(0, MSG_MAX).join('');
+  u.profile = { icon, msg }; saveAcc();
+  return u.profile;
+}
 function cosm(nick) {
   const e = eco(nick);
-  if (!e) return { color: '', title: '', effect: 'basic' };
+  const icon = profileOf(nick).icon;
+  if (!e) return { color: '', title: '', effect: 'basic', icon };
   const c = getItem('color', e.eq.color), t = getItem('title', e.eq.title);
-  return { color: c ? c.css : '', title: t ? t.name : '', effect: getItem('effect', e.eq.effect) ? e.eq.effect : 'basic' };
+  return { color: c ? c.css : '', title: t ? t.name : '', effect: getItem('effect', e.eq.effect) ? e.eq.effect : 'basic', icon };
 }
 function shopState(nick) {
   const e = eco(nick), day = kstDay();
@@ -321,7 +336,7 @@ function shopState(nick) {
   catalog.title = catalog.title.concat(e.owned.title.filter((id) => seasonTitle(id)).map((id) => ({ id, ...seasonTitle(id), owned: true })));
   const th = getItem('theme', e.eq.theme) || SHOP.theme.light;
   return {
-    coins: e.coins, eq: e.eq, cosm: cosm(nick), catalog, quests: questView(nick), notes: e.notes || [], admin: isAdminNick(nick),
+    coins: e.coins, eq: e.eq, cosm: cosm(nick), profile: profileOf(nick), catalog, quests: questView(nick), notes: e.notes || [], admin: isAdminNick(nick),
     eqTheme: { id: e.eq.theme, base: th.base, vars: th.vars },
     daily: { canClaim, reward: dailyReward(nextDay), day: nextDay },
     soloToday: e.daily.soloDate === day ? e.daily.soloEarned : 0, soloCap: SOLO_DAILY_CAP,
@@ -515,11 +530,43 @@ function onPvpEnd(room, winner, reason) {
   }
   saveAcc();
 }
-function seasonView() {
+const SNAP_MS = +process.env.SNAP_MS || 30 * 60 * 1000;
+function rankMap(rows) { const m = {}; rows.forEach((r, i) => { m[r.nick] = i + 1; }); return m; }
+function seasonView(me) {
   const s = ensureSeason(), b = seasonBoards(s), now = Date.now();
-  const dec = (r) => ({ ...r, ...cosm(r.nick) });
-  return { id: s.id, start: s.start, end: s.end, now, remain: Math.max(0, s.end - now), prizes: SEASON_PRIZES, part: SEASON_PART,
-    solo: b.solo.slice(0, 10).map(dec), wins: b.wins.slice(0, 10).map(dec), hist: (accounts.seasonHist || []).slice(0, 3) };
+  // 순위 변동: 30분마다 스냅샷을 돌려서, 직전 스냅샷 대비 오르내림을 보여줌
+  const live = { solo: rankMap(b.solo), wins: rankMap(b.wins) };
+  const sn = s.snap || (s.snap = { at: now, cur: live, prev: null });
+  if (now - sn.at >= SNAP_MS) { sn.prev = sn.cur; sn.cur = live; sn.at = now; saveAcc(); }
+  const chg = (kind, nick, rank) => {
+    if (!sn.prev) return null;
+    const p = sn.prev[kind][nick];
+    return p ? p - rank : 'new';
+  };
+  const dec = (kind) => (r, i) => ({ ...r, rank: i + 1, chg: chg(kind, r.nick, i + 1), ...cosm(r.nick) });
+  const out = { id: s.id, start: s.start, end: s.end, now, remain: Math.max(0, s.end - now), prizes: SEASON_PRIZES, part: SEASON_PART,
+    solo: b.solo.slice(0, 10).map(dec('solo')), wins: b.wins.slice(0, 10).map(dec('wins')), hist: (accounts.seasonHist || []).slice(0, 3) };
+  const u = me && userOf(me);
+  if (u && !u.banned) {
+    const mk = (kind, rows, val) => {
+      const i = rows.findIndex((r) => r.nick === u.nick);
+      if (i < 0) return { rank: 0, total: rows.length, first: rows[0] ? val(rows[0]) : 0 };
+      return { rank: i + 1, total: rows.length, value: val(rows[i]), first: val(rows[0]), gap: val(rows[0]) - val(rows[i]), chg: chg(kind, u.nick, i + 1) };
+    };
+    out.me = { solo: mk('solo', b.solo, (r) => r.score), wins: mk('wins', b.wins, (r) => r.wins) };
+  }
+  return out;
+}
+
+/* ---------- 공개 프로필 ---------- */
+function publicProfile(nick) {
+  const u = userOf(nick); if (!u || u.banned) return null;
+  const k = u.nick, p = profileOf(k), c = cosm(k), t = st(k), s = ensureSeason(), b = seasonBoards(s);
+  const e = eco(k), seasonTitles = ((e && e.owned.title) || []).map(seasonTitle).filter(Boolean).map((x) => x.name).slice(-6);
+  const si = b.solo.findIndex((r) => r.nick === k), wi = b.wins.findIndex((r) => r.nick === k);
+  return { nick: k, icon: p.icon, msg: p.msg, color: c.color, title: c.title, created: u.created || 0, online: (Date.now() - (seen.get(k) || 0)) < 60000,
+    race: t.race, territory: t.territory, solo: t.solo, seasonTitles,
+    season: { soloScore: (s.solo[k] || {}).score || 0, soloRank: si + 1, wins: s.wins[k] || 0, winRank: wi + 1, plays: (s.plays || {})[k] || 0 } };
 }
 
 /* ---------- 관리자 (닉네임 + 관리자 키, 둘 다 맞아야 함) ---------- */
@@ -951,9 +998,16 @@ const server = http.createServer(async (req, res) => {
       return res.end(fs.readFileSync(path.join(__dirname, 'index.html')));
     }
     if (req.method === 'GET' && url.pathname === '/favicon.ico') { res.writeHead(204); return res.end(); }
-    if (req.method === 'GET' && url.pathname === '/api/season') return json(res, 200, seasonView());
+    if (req.method === 'GET' && url.pathname === '/api/season') return json(res, 200, seasonView(url.searchParams.get('me')));
     if (req.method === 'GET' && url.pathname === '/api/ranking') {
-      return json(res, 200, rankingList(url.searchParams.get('mode') || 'race', url.searchParams.get('diff') || 'normal', url.searchParams.get('by') || 'time'));
+      const mode = url.searchParams.get('mode') || 'race', diff = url.searchParams.get('diff') || 'normal', by = url.searchParams.get('by') || 'time', me = url.searchParams.get('me');
+      if (!me) return json(res, 200, rankingList(mode, diff, by));
+      const all = rankingList(mode, diff, by, true), i = all.findIndex((r) => r.nick.toLowerCase() === me.toLowerCase());
+      return json(res, 200, { rows: all.slice(0, 20), me: i < 0 ? null : { rank: i + 1, total: all.length, row: all[i], first: all[0] } });
+    }
+    if (req.method === 'GET' && url.pathname === '/api/profile') {
+      const p = publicProfile(url.searchParams.get('nick') || '');
+      return p ? json(res, 200, p) : json(res, 404, { error: '유저를 찾을 수 없어요' });
     }
 
     if (req.method === 'GET' && url.pathname === '/api/events') {
@@ -994,7 +1048,7 @@ const server = http.createServer(async (req, res) => {
       }
       if (action === 'me') {
         const nick = nickFromToken(body.token);
-        return nick ? json(res, 200, { nick, coins: coinsOf(nick), admin: isAdminNick(nick) }) : json(res, 401, { error: '로그인이 필요해요' });
+        return nick ? json(res, 200, { nick, coins: coinsOf(nick), admin: isAdminNick(nick), profile: profileOf(nick) }) : json(res, 401, { error: '로그인이 필요해요' });
       }
       if (action === 'logout') {
         if (body.token) { delete accounts.sessions[sha(String(body.token))]; saveAcc(); }
@@ -1072,12 +1126,13 @@ const server = http.createServer(async (req, res) => {
         if (!rm) return json(res, 404, { error: '해당 코드의 방이 없어요' });
         return json(res, 200, { mode: rm.mode, difficulty: rm.difficulty, bet: rm.bet || 0, fixed: !!rm.fixed, host: rm.players[0].nick, full: rm.players.length >= 2 });
       }
-      if (action === 'shop' || action.startsWith('shop/') || action === 'daily/claim' || action === 'quest/claim' || action === 'notes/ack') {
+      if (action === 'shop' || action.startsWith('shop/') || action === 'daily/claim' || action === 'quest/claim' || action === 'notes/ack' || action === 'profile/set') {
         if (!authNick) return json(res, 401, { error: '로그인이 필요해요' });
         try {
           let claimed = 0;
           if (action === 'shop/buy') buyItem(authNick, body.kind, body.id);
           else if (action === 'shop/equip') equipItem(authNick, body.kind, body.id);
+          else if (action === 'profile/set') setProfile(authNick, body.icon, body.msg);
           else if (action === 'daily/claim') claimed = claimDaily(authNick);
           else if (action === 'quest/claim') claimed = claimQuest(authNick, String(body.id || ''));
           else if (action === 'notes/ack') { const e = eco(authNick); if (e && e.notes && e.notes.length) { e.notes = []; saveAcc(); } }

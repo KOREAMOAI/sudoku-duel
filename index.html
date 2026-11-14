@@ -183,6 +183,36 @@ label.chk span{color:var(--mute);font-size:12px}
 .daily{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--me-bg);border-color:var(--me)}
 .daily .btn{width:auto;padding:10px 14px;font-size:14px;white-space:nowrap}
 #fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:60}
+
+/* 랭킹 개선 / 프로필 */
+.pod{display:flex;gap:8px;align-items:flex-end;justify-content:center;margin:6px 0 12px}
+.pod .pc{max-width:170px}
+.pc{flex:1;min-width:0;border:1px solid var(--edge);background:var(--paper);border-radius:14px;padding:10px 4px 10px;text-align:center;cursor:pointer;color:var(--ink);font:inherit}
+.pc.r1{padding-top:16px;padding-bottom:16px;border-color:#f5c542;background:linear-gradient(180deg,rgba(245,197,66,.16),transparent)}
+.pc.r2{border-color:#b8c0cc;background:linear-gradient(180deg,rgba(184,192,204,.16),transparent)}
+.pc.r3{border-color:#d9a066;background:linear-gradient(180deg,rgba(217,160,102,.16),transparent)}
+.pc .pm{font-size:18px;line-height:1}
+.pc .pa{font-size:30px;line-height:1.25}.pc.r1 .pa{font-size:38px}
+.pc .pn{font-size:13px;font-weight:600;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 4px}
+.pc .pv{font-size:13px;margin-top:3px;font-weight:700}
+.pc .pp{font-size:11px;color:var(--mute);margin-top:2px}
+.pc .ttl{display:block;margin:0}
+.chg{font-size:11px;font-weight:700;margin-left:4px;white-space:nowrap}
+.chg.up{color:#16a34a}.chg.dn{color:#dc2626}.chg.nw{color:var(--blue)}.chg.eq{color:var(--mute);font-weight:500}
+td.n{cursor:pointer}
+.mebar{position:sticky;bottom:calc(64px + env(safe-area-inset-bottom));margin:12px -4px 0;padding:10px 14px;border-radius:12px;background:var(--blue);color:#fff;font-size:14px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.18);z-index:5}
+.mebar b{font-size:16px}.mebar .mg{font-size:12px;opacity:.9;margin-left:auto;text-align:right}
+.mebar .chg{color:#fff}
+.pf-hd{display:flex;align-items:center;gap:12px;margin:2px 0 12px}
+.pf-av{font-size:44px;line-height:1;width:64px;height:64px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;flex:none;border:1px solid var(--edge)}
+.pf-nm{font-size:18px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.pf-msg{font-size:14px;color:var(--mute);margin-top:3px;word-break:break-all}
+.pf-tags{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.pf-tags span{font-size:12px;padding:3px 8px;border-radius:99px;background:var(--bg);border:1px solid var(--edge)}
+.ibox{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin:6px 0 12px}
+.ibox button{font-size:22px;padding:6px 0;border:1px solid var(--line);border-radius:10px;background:var(--paper)}
+.ibox button.on{border-color:var(--blue);background:rgba(37,99,235,.12);box-shadow:0 0 0 1px var(--blue) inset}
+.mmsg{font-size:12px;color:var(--mute);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 </style>
 </head>
 <body>
@@ -204,7 +234,7 @@ label.chk span{color:var(--mute);font-size:12px}
 
   <div id="playCard" class="hide">
     <div class="topbar">
-      <div class="tb-who">👤 <b id="who"></b></div>
+      <div class="tb-who"><span id="whoIcon">👤</span> <b id="who"></b></div>
       <div class="coinpill">🪙 <b id="coins">0</b></div>
       <button class="dailypill hide" id="dailyBtn">🎁 출석 <span id="dailyAmt"></span></button>
     </div>
@@ -267,6 +297,15 @@ label.chk span{color:var(--mute);font-size:12px}
 
     <!-- 내 정보 탭 -->
     <section class="tabp" data-tab="me">
+      <div class="card">
+        <div class="ct">🪪 내 프로필</div>
+        <div class="pf-hd"><div class="pf-av" id="pfAv">🙂</div><div style="min-width:0"><div class="pf-nm" id="pfNm"></div><div class="pf-msg" id="pfMsg"></div></div></div>
+        <div class="cap" style="margin:0">아이콘</div>
+        <div class="ibox" id="iconBox"></div>
+        <label class="f" for="msgIn">상태 메시지 <span id="msgCnt">0/30</span></label>
+        <input type="text" id="msgIn" maxlength="30" placeholder="한마디를 남겨 보세요 (예: 오늘도 1등 가자!)" autocomplete="off">
+        <button class="btn" id="pfSave">프로필 저장</button>
+      </div>
       <div class="card">
         <div class="ct">📊 내 기록</div>
         <div id="mystats"></div>
@@ -342,8 +381,16 @@ label.chk span{color:var(--mute);font-size:12px}
         </div>
         <div id="rank"></div>
       </div>
+      <div id="mebar" class="mebar hide"></div>
     </div>
   </section>
+
+  <!-- 프로필 보기 시트 -->
+  <div id="psheet" class="sheet hide">
+    <div class="sheet-bg" id="psheetBg"></div>
+    <div class="sheet-body"><div class="grab"></div><div id="pbody"></div>
+      <button class="btn gray" id="pclose" style="margin-top:12px">닫기</button></div>
+  </div>
 
   <!-- 하단 탭 바 -->
   <nav class="nav hide" id="nav">
@@ -547,7 +594,7 @@ function applyShop(s) {
   $('#dailyInfo').textContent = d.canClaim ? d.day + '일째 출석 보상 +' + d.reward + '🪙을 받을 수 있어요' : '오늘 출석 완료 · 내일 또 오면 보너스가 늘어나요 (최대 +70🪙)';
   $('#soloCap').textContent = '솔로 보상 오늘 ' + s.soloToday + '/' + s.soloCap + '🪙';
   $('#adminOpen').classList.toggle('hide', !s.admin);
-  renderShop(); renderQuests(); showNotes(s);
+  renderShop(); renderQuests(); showNotes(s); renderProfileEdit();
 }
 async function loadShop() { if (!token) return; try { applyShop(await api('shop')); } catch {} }
 $('#dailyBtn').onclick = () => guard(async () => { const r = await api('daily/claim'); applyShop(r); toast('출석 완료! +' + r.claimed + '🪙'); });
@@ -642,27 +689,82 @@ async function loadRank() {
   if (sc === 'season') return loadSeason();
   return loadRankAll();
 }
+/* ---------- 랭킹 공용 렌더 (상위 3명 강조 · 내 순위 고정 · 프로필 보기 · 순위 변동) ---------- */
+const chgEl = (c) => {
+  if (c === null || c === undefined) return null;
+  const e = document.createElement('span');
+  if (c === 'new') { e.className = 'chg nw'; e.textContent = 'NEW'; }
+  else if (c > 0) { e.className = 'chg up'; e.textContent = '▲' + c; }
+  else if (c < 0) { e.className = 'chg dn'; e.textContent = '▼' + -c; }
+  else return null;
+  return e;
+};
+// rows: [{nick,color,title,icon,chg?}], opt: {val(r) 포디움 값, cols:[{h,v(r)}] 표 열, prizes?}
+function renderBoard(el, rows, opt) {
+  el.textContent = '';
+  if (!rows.length) { el.innerHTML = '<div class="empty">아직 기록이 없어요. 첫 기록의 주인공이 되어 보세요!</div>'; return; }
+  const pod = document.createElement('div'); pod.className = 'pod';
+  [1, 0, 2].forEach((i) => {
+    const r = rows[i]; if (!r) { if (rows.length > 1) { const sp = document.createElement('div'); sp.style.flex = '1'; pod.appendChild(sp); } return; }
+    const b = document.createElement('button'); b.className = 'pc r' + (i + 1); b.onclick = () => openProfile(r.nick);
+    const m = document.createElement('div'); m.className = 'pm'; m.textContent = ['🥇', '🥈', '🥉'][i]; b.appendChild(m);
+    const av = document.createElement('div'); av.className = 'pa'; av.textContent = r.icon || '🙂'; b.appendChild(av);
+    const n = document.createElement('div'); n.className = 'pn'; setName(n, r.nick, r.color, ''); const c = chgEl(r.chg); if (c) n.appendChild(c); b.appendChild(n);
+    if (r.title) { const t = document.createElement('div'); t.className = 'pp'; t.textContent = r.title; b.appendChild(t); }
+    const v = document.createElement('div'); v.className = 'pv'; v.textContent = opt.val(r); b.appendChild(v);
+    if (opt.prizes) { const p = document.createElement('div'); p.className = 'pp'; p.textContent = '+' + opt.prizes[i] + '🪙'; b.appendChild(p); }
+    pod.appendChild(b);
+  });
+  el.appendChild(pod);
+  if (rows.length > 3) {
+    const tb = document.createElement('table'), hr = document.createElement('tr');
+    ['#', '닉네임'].concat(opt.cols.map((c) => c.h)).forEach((t, k) => { const th = document.createElement('th'); if (k === 1) th.style.textAlign = 'left'; th.textContent = t; hr.appendChild(th); });
+    tb.appendChild(hr);
+    rows.slice(3).forEach((r, j) => {
+      const tr = document.createElement('tr');
+      const t0 = document.createElement('td'); t0.textContent = j + 4; tr.appendChild(t0);
+      const t1 = document.createElement('td'); t1.className = 'n'; if (r.nick === user) t1.style.fontWeight = '700';
+      setName(t1, (r.icon ? r.icon + ' ' : '') + r.nick, r.color, r.title); const c = chgEl(r.chg); if (c) t1.appendChild(c);
+      t1.onclick = () => openProfile(r.nick); tr.appendChild(t1);
+      opt.cols.forEach((c) => { const td = document.createElement('td'); td.textContent = c.v(r); tr.appendChild(td); });
+      tb.appendChild(tr);
+    });
+    el.appendChild(tb);
+  }
+}
+function renderMeBar(mb) {
+  const bar = $('#mebar');
+  if (!token || !mb) { bar.classList.add('hide'); return; }
+  bar.classList.remove('hide'); bar.textContent = '';
+  const ic = document.createElement('span'); ic.textContent = (shop && shop.profile && shop.profile.icon) || '🙂'; bar.appendChild(ic);
+  const t = document.createElement('span');
+  if (!mb.rank) { t.textContent = '아직 순위에 없어요 · 도전해 보세요!'; bar.appendChild(t); return; }
+  t.innerHTML = '내 순위 <b></b>'; t.querySelector('b').textContent = mb.rank + '위'; bar.appendChild(t);
+  const c = chgEl(mb.chg); if (c) bar.appendChild(c);
+  const g = document.createElement('span'); g.className = 'mg'; g.textContent = mb.rank === 1 ? '👑 현재 1위!' : '1위와 ' + mb.gap + ' 차이'; bar.appendChild(g);
+}
 async function loadRankAll() {
   const val = (n) => document.querySelector('input[name=' + n + ']:checked').value;
   const m = val('rm'), d = val('rd'), by = val('rb');
   $('#rsolo').classList.toggle('hide', m !== 'solo');
   const el = $('#rank');
   try {
-    const list = await (await fetch('/api/ranking?mode=' + m + '&diff=' + d + '&by=' + by)).json();
-    if (!list.length) { el.innerHTML = '<div class="empty">아직 기록이 없어요. 첫 기록의 주인공이 되어 보세요!</div>'; return; }
-    const head = m === 'solo' ? ['#', '닉네임', by === 'score' ? '점수' : '기록', '완료'] : ['#', '닉네임', '승', '패', '승률'];
-    el.innerHTML = '<table></table>';
-    const tb = el.firstChild, hr = document.createElement('tr');
-    head.forEach((t, k) => { const th = document.createElement('th'); if (k === 1) th.style.textAlign = 'left'; th.textContent = t; hr.appendChild(th); });
-    tb.appendChild(hr);
-    list.slice(0, 10).forEach((r, i) => {
-      const tr = document.createElement('tr');
-      let row;
-      if (m === 'solo') row = [i + 1, r.nick, by === 'score' ? r.value : mmss(r.value), r.done];
-      else { const tot = r.wins + r.losses; row = [i + 1, r.nick, r.wins, r.losses, tot ? Math.round((r.wins / tot) * 100) + '%' : '-']; }
-      row.forEach((v, k) => { const td = document.createElement('td'); if (k === 1) { td.className = 'n'; if (r.nick === user) td.style.fontWeight = '700'; setName(td, r.nick, r.color, r.title); } else td.textContent = v; tr.appendChild(td); });
-      tb.appendChild(tr);
-    });
+    const res = await (await fetch('/api/ranking?mode=' + m + '&diff=' + d + '&by=' + by + (user ? '&me=' + encodeURIComponent(user) : ''))).json();
+    const list = Array.isArray(res) ? res : res.rows, me = Array.isArray(res) ? null : res.me;
+    const rate = (r) => { const t = r.wins + r.losses; return t ? Math.round((r.wins / t) * 100) + '%' : '-'; };
+    const solo = m === 'solo', sv = (r) => (by === 'score' ? r.value : mmss(r.value));
+    renderBoard(el, list.slice(0, 10), solo
+      ? { val: sv, cols: [{ h: by === 'score' ? '점수' : '기록', v: sv }, { h: '완료', v: (r) => r.done }] }
+      : { val: (r) => r.wins + '승 ' + r.losses + '패', cols: [{ h: '승', v: (r) => r.wins }, { h: '패', v: (r) => r.losses }, { h: '승률', v: rate }] });
+    let mb = null;
+    if (user) {
+      if (!me) mb = { rank: 0 };
+      else {
+        const gap = solo ? (by === 'score' ? me.first.value - me.row.value : me.row.value - me.first.value) : me.first.wins - me.row.wins;
+        mb = { rank: me.rank, gap: solo ? (by === 'score' ? gap + '점' : mmss(Math.max(0, gap))) : gap + '승' };
+      }
+    }
+    renderMeBar(mb);
   } catch {}
 }
 ['rm', 'rd', 'rb'].forEach((n) => document.querySelectorAll('input[name=' + n + ']').forEach((r) => r.addEventListener('change', loadRank)));
@@ -717,25 +819,21 @@ setInterval(tickSeason, 30000);
 async function loadSeason() {
   const el = $('#seasonRank'), board = document.querySelector('input[name=rsb]:checked').value;
   try {
-    const sv = await (await fetch('/api/season')).json();
+    const sv = await (await fetch('/api/season' + (user ? '?me=' + encodeURIComponent(user) : ''))).json();
     seasonEndLocal = Date.now() + sv.remain;
     const info = $('#seasonInfo'); info.textContent = fmtMD(sv.start) + ' ~ ' + fmtMD(sv.end - 1) + ' 시즌 · 정산까지 ';
     const rm = document.createElement('b'); rm.id = 'seasonRemain'; rm.textContent = fmtRemain(sv.remain); info.appendChild(rm);
     $('#seasonPrize').textContent = '🥇 ' + sv.prizes[0] + ' · 🥈 ' + sv.prizes[1] + ' · 🥉 ' + sv.prizes[2] + '🪙 + 한정 칭호 · 참여 보상 ' + sv.part + '🪙';
     const rows = board === 'solo' ? sv.solo : sv.wins;
-    if (!rows.length) el.innerHTML = '<div class="empty">아직 기록이 없어요. 이번 시즌 첫 주인공이 되어 보세요!</div>';
-    else {
-      el.innerHTML = '<table></table>'; const tb = el.firstChild, hr = document.createElement('tr');
-      ['#', '닉네임', board === 'solo' ? '최고점' : '승수'].forEach((t, k) => { const th = document.createElement('th'); if (k === 1) th.style.textAlign = 'left'; th.textContent = t; hr.appendChild(th); });
-      tb.appendChild(hr);
-      rows.forEach((r, i) => {
-        const tr = document.createElement('tr');
-        const td0 = document.createElement('td'); td0.className = 'medal'; td0.textContent = ['🥇', '🥈', '🥉'][i] || (i + 1); tr.appendChild(td0);
-        const td1 = document.createElement('td'); td1.className = 'n'; if (r.nick === user) td1.style.fontWeight = '700'; setName(td1, r.nick, r.color, r.title); tr.appendChild(td1);
-        const td2 = document.createElement('td'); td2.textContent = board === 'solo' ? r.score + ({ easy: ' (쉬움)', normal: ' (보통)', hard: ' (어려움)' }[r.diff] || '') : r.wins + '승'; tr.appendChild(td2);
-        tb.appendChild(tr);
-      });
+    renderBoard(el, rows, board === 'solo'
+      ? { val: (r) => r.score + '점', prizes: sv.prizes, cols: [{ h: '최고점', v: (r) => r.score + ({ easy: ' (쉬움)', normal: ' (보통)', hard: ' (어려움)' }[r.diff] || '') }] }
+      : { val: (r) => r.wins + '승', prizes: sv.prizes, cols: [{ h: '승수', v: (r) => r.wins + '승' }] });
+    let mb = null;
+    if (user && sv.me) {
+      const x = sv.me[board === 'solo' ? 'solo' : 'wins'];
+      mb = x.rank ? { rank: x.rank, chg: x.chg, gap: x.gap + (board === 'solo' ? '점' : '승') } : { rank: 0 };
     }
+    renderMeBar(mb);
     const h = sv.hist[0], hl = $('#seasonHist');
     if (h) {
       const s1 = h.solo[0], w1 = h.wins[0];
@@ -744,6 +842,57 @@ async function loadSeason() {
   } catch {}
 }
 document.querySelectorAll('input[name=rs],input[name=rsb]').forEach((r) => r.addEventListener('change', loadRank));
+
+/* ---------- 프로필 (내 설정 · 다른 유저 보기) ---------- */
+const PROFILE_ICONS = ['🙂','😎','🤓','😺','🐶','🦊','🐼','🐯','🐸','🐧','🦄','🐲','🦉','🐙','🔥','⭐','🌙','⚡','🍀','🎯','🧠','👑','🚀','🎲'];
+let pfIcon = '';
+function renderProfileEdit() {
+  const p = (shop && shop.profile) || { icon: '', msg: '' };
+  if (!$('#msgIn').dataset.dirty) { pfIcon = p.icon; $('#msgIn').value = p.msg; }
+  $('#msgCnt').textContent = Array.from($('#msgIn').value).length + '/30';
+  $('#pfAv').textContent = pfIcon || '🙂'; setName($('#pfNm'), user, shop && shop.cosm.color, shop && shop.cosm.title);
+  $('#pfMsg').textContent = p.msg || '상태 메시지가 없어요';
+  const box = $('#iconBox'); box.textContent = '';
+  PROFILE_ICONS.forEach((ic) => {
+    const b = document.createElement('button'); b.textContent = ic; if (ic === pfIcon) b.classList.add('on');
+    b.onclick = () => { pfIcon = ic; $('#msgIn').dataset.dirty = '1'; renderProfileEdit(); };
+    box.appendChild(b);
+  });
+  const wi = $('#whoIcon'); if (wi) wi.textContent = p.icon || '👤';
+}
+$('#msgIn').addEventListener('input', () => { $('#msgIn').dataset.dirty = '1'; $('#msgCnt').textContent = Array.from($('#msgIn').value).length + '/30'; });
+$('#pfSave').onclick = () => guard(async () => {
+  const r = await api('profile/set', { icon: pfIcon, msg: $('#msgIn').value });
+  delete $('#msgIn').dataset.dirty; applyShop(r); toast('프로필을 저장했어요');
+});
+const fmtDate = (ms) => { const k = new Date(ms + 9 * 3600e3); return k.getUTCFullYear() + '.' + (k.getUTCMonth() + 1) + '.' + k.getUTCDate(); };
+async function openProfile(nick) {
+  const body = $('#pbody'); body.textContent = '불러오는 중…'; $('#psheet').classList.remove('hide');
+  try {
+    const r = await fetch('/api/profile?nick=' + encodeURIComponent(nick));
+    if (!r.ok) { body.textContent = '유저를 찾을 수 없어요'; return; }
+    const p = await r.json(); body.textContent = '';
+    const hd = document.createElement('div'); hd.className = 'pf-hd';
+    const av = document.createElement('div'); av.className = 'pf-av'; av.textContent = p.icon || '🙂'; hd.appendChild(av);
+    const w = document.createElement('div'); w.style.minWidth = '0';
+    const nm = document.createElement('div'); nm.className = 'pf-nm'; setName(nm, p.nick, p.color, p.title, p.online ? ' 🟢' : ''); w.appendChild(nm);
+    const ms = document.createElement('div'); ms.className = 'pf-msg'; ms.textContent = p.msg || '상태 메시지가 없어요'; w.appendChild(ms);
+    hd.appendChild(w); body.appendChild(hd);
+    if (p.seasonTitles.length) { const tg = document.createElement('div'); tg.className = 'pf-tags'; p.seasonTitles.forEach((t) => { const sp = document.createElement('span'); sp.textContent = t; tg.appendChild(sp); }); body.appendChild(tg); }
+    const wl = (x) => { const n = x.wins + x.losses; return x.wins + '승 ' + x.losses + '패' + (n ? ' (' + Math.round((x.wins / n) * 100) + '%)' : ''); };
+    const names = { easy: '쉬움', normal: '보통', hard: '어려움' };
+    let t = '<table><tr><th>솔로</th><th>완료</th><th>최단</th><th>최고점</th></tr>';
+    for (const d of ['easy', 'normal', 'hard']) { const x = p.solo[d]; t += '<tr><td>' + names[d] + '</td><td>' + x.done + '</td><td>' + (x.bestTime ? mmss(x.bestTime) : '-') + '</td><td>' + (x.bestScore || '-') + '</td></tr>'; }
+    const info = document.createElement('div'); info.innerHTML = t + '</table>';
+    const l1 = document.createElement('div'); l1.style.cssText = 'margin-top:10px;font-size:14px'; l1.textContent = '레이스 ' + wl(p.race) + ' · 칸 차지 ' + wl(p.territory); info.appendChild(l1);
+    const l2 = document.createElement('div'); l2.style.cssText = 'margin-top:6px;font-size:14px';
+    l2.textContent = '이번 시즌 · 솔로 ' + (p.season.soloRank ? p.season.soloRank + '위 (' + p.season.soloScore + '점)' : '기록 없음') + ' · 대결 ' + (p.season.winRank ? p.season.winRank + '위 (' + p.season.wins + '승)' : '기록 없음');
+    info.appendChild(l2);
+    const l3 = document.createElement('div'); l3.className = 'cap'; l3.style.margin = '8px 0 0'; l3.textContent = p.created ? fmtDate(p.created) + ' 가입' : ''; info.appendChild(l3);
+    body.appendChild(info);
+  } catch { body.textContent = '불러오지 못했어요'; }
+}
+$('#psheetBg').onclick = $('#pclose').onclick = () => $('#psheet').classList.add('hide');
 
 /* ---------- 일일 퀘스트 / 알림 ---------- */
 function renderQuests() {
