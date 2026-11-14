@@ -569,6 +569,42 @@ function publicProfile(nick) {
     season: { soloScore: (s.solo[k] || {}).score || 0, soloRank: si + 1, wins: s.wins[k] || 0, winRank: wi + 1, plays: (s.plays || {})[k] || 0 } };
 }
 
+
+/* ---------- 피드백 게시판 (로그인한 사람만 · 공감 투표) ---------- */
+const BOARD_MAX_LEN = 300, BOARD_DAILY = 3, BOARD_KEEP = 300;
+function boardList(me, sort) {
+  const b = (accounts.board && accounts.board.posts) || [];
+  const rows = b.filter((p) => { const u = userOf(p.nick); return u && !u.banned; }).map((p) => ({
+    id: p.id, nick: p.nick, text: p.text, at: p.at, likes: p.likes.length, liked: p.likes.includes(me), mine: p.nick === me, ...cosm(p.nick) }));
+  rows.sort(sort === 'hot' ? (x, y) => y.likes - x.likes || y.at - x.at : (x, y) => y.at - x.at);
+  return rows.slice(0, 100);
+}
+function boardPost(nick, text) {
+  text = String(text || '').replace(/[\u0000-\u0008\u000b-\u001f\u007f<>]/g, ' ').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+  text = Array.from(text).slice(0, BOARD_MAX_LEN).join('');
+  if (Array.from(text).length < 5) throw new Error('5자 이상 적어 주세요');
+  const bd = accounts.board = accounts.board || { seq: 0, posts: [] }, day = kstDay();
+  const today = bd.posts.filter((p) => p.nick === nick && kstDay((p.at - Date.now()) / 864e5) === day).length;
+  if (today >= BOARD_DAILY) throw new Error('하루에 ' + BOARD_DAILY + '개까지 쓸 수 있어요');
+  if (bd.posts.some((p) => p.nick === nick && p.text === text)) throw new Error('같은 내용을 이미 올렸어요');
+  bd.posts.unshift({ id: ++bd.seq, nick, text, at: Date.now(), likes: [] });
+  bd.posts.length = Math.min(bd.posts.length, BOARD_KEEP);
+  saveAcc();
+}
+function boardLike(nick, id) {
+  const p = ((accounts.board && accounts.board.posts) || []).find((x) => x.id === +id);
+  if (!p) throw new Error('없는 글이에요');
+  if (p.nick === nick) throw new Error('내 글에는 공감할 수 없어요');
+  const i = p.likes.indexOf(nick); if (i >= 0) p.likes.splice(i, 1); else p.likes.push(nick);
+  saveAcc();
+}
+function boardDelete(nick, id, force) {
+  const bd = accounts.board; const i = bd ? bd.posts.findIndex((x) => x.id === +id) : -1;
+  if (i < 0) throw new Error('없는 글이에요');
+  if (!force && bd.posts[i].nick !== nick) throw new Error('내 글만 지울 수 있어요');
+  bd.posts.splice(i, 1); saveAcc();
+}
+
 /* ---------- 관리자 (닉네임 + 관리자 키, 둘 다 맞아야 함) ---------- */
 const ADMIN_NICKS = (process.env.ADMIN_NICK || 'KOREAMOAI,KOROEAMOAI').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
 const isAdminNick = (n) => !!n && ADMIN_NICKS.includes(String(n).toLowerCase());
@@ -1072,6 +1108,7 @@ const server = http.createServer(async (req, res) => {
             const s = ensureSeason();
             return json(res, 200, { users, total: Object.keys(accounts.users).length, db: { ...dbInfo }, season: { id: s.id, end: s.end } });
           }
+          if (a === 'board/delete') { boardDelete('', body.id, true); return json(res, 200, { ok: true }); }
           if (a === 'ban' || a === 'unban' || a === 'coins') {
             const u = userOf(body.nick || '');
             if (!u) throw new Error('없는 계정이에요');
@@ -1120,6 +1157,19 @@ const server = http.createServer(async (req, res) => {
         }
         const names = [...online].sort((a, b) => a.localeCompare(b)).slice(0, 24).map((n) => ({ nick: n, ...cosm(n) }));
         return json(res, 200, { rooms: list.slice(0, 20), online: online.size, names });
+      }
+      if (action.startsWith('board/')) {
+        if (!authNick) return json(res, 401, { error: '로그인이 필요해요' });
+        try {
+          const a = action.slice(6);
+          if (a === 'list') return json(res, 200, { posts: boardList(authNick, body.sort), max: BOARD_MAX_LEN, daily: BOARD_DAILY });
+          if (isBanned(authNick)) return json(res, 403, { error: '정지된 계정은 사용할 수 없어요' });
+          if (a === 'post') boardPost(authNick, body.text);
+          else if (a === 'like') boardLike(authNick, body.id);
+          else if (a === 'delete') boardDelete(authNick, body.id, false);
+          else return json(res, 404, { error: '없는 요청이에요' });
+          return json(res, 200, { posts: boardList(authNick, body.sort), max: BOARD_MAX_LEN, daily: BOARD_DAILY });
+        } catch (e) { return json(res, 400, { error: e.message }); }
       }
       if (action === 'roominfo') {
         const rm = rooms.get(String(body.code || '').toUpperCase().trim());

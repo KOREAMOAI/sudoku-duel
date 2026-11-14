@@ -213,6 +213,28 @@ td.n{cursor:pointer}
 .ibox button{font-size:22px;padding:6px 0;border:1px solid var(--line);border-radius:10px;background:var(--paper)}
 .ibox button.on{border-color:var(--blue);background:rgba(37,99,235,.12);box-shadow:0 0 0 1px var(--blue) inset}
 .mmsg{font-size:12px;color:var(--mute);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+textarea{width:100%;box-sizing:border-box;font:inherit;font-size:15px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);outline:none;resize:vertical;margin-bottom:8px}
+textarea:focus{border-color:var(--blue)}
+.post{background:var(--paper);border:1px solid var(--edge);border-radius:14px;padding:12px 14px;margin-bottom:10px}
+.post .ph{display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:6px}
+.post .ph .pt{margin-left:auto;color:var(--mute);font-size:11px;white-space:nowrap}
+.post .pb{font-size:14.5px;white-space:pre-wrap;word-break:break-word;line-height:1.5}
+.post .pf{display:flex;align-items:center;gap:8px;margin-top:8px}
+.lk{border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:99px;padding:5px 12px;font-size:13px}
+.lk.on{background:rgba(37,99,235,.12);border-color:var(--blue);color:var(--blue);font-weight:700}
+.lk:disabled{opacity:.5}
+.pdel{border:0;background:none;color:var(--mute);font-size:12px;text-decoration:underline;margin-left:auto}
+/* 전체 기록 아코디언 */
+.acc{border:1px solid var(--edge);border-radius:12px;margin-bottom:8px;background:var(--paper);overflow:hidden}
+.acch{width:100%;display:flex;align-items:center;gap:8px;padding:12px 14px;border:0;background:none;color:var(--ink);font-size:15px;font-weight:600;text-align:left}
+.acch .tri{display:inline-block;transition:transform .15s;color:var(--mute);font-size:12px}
+.acc.open .tri{transform:rotate(90deg)}
+.acch .pv2{margin-left:auto;font-weight:500;font-size:12.5px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
+.accb{padding:0 12px 12px;display:none}.acc.open .accb{display:block}
+.mini{display:flex;gap:6px;margin:0 0 10px}
+.mini button{flex:1;padding:7px 0;border:1px solid var(--line);border-radius:9px;background:var(--paper);color:var(--mute);font-size:13px}
+.mini button.on{background:var(--blue);border-color:var(--blue);color:#fff}
 </style>
 </head>
 <body>
@@ -295,6 +317,21 @@ td.n{cursor:pointer}
       </div>
     </section>
 
+    <!-- 게시판 탭 -->
+    <section class="tabp" data-tab="board">
+      <div class="card">
+        <div class="ct">💬 피드백 게시판</div>
+        <div class="cap" style="margin:0 0 10px">게임에 대한 의견, 불편한 점, 바라는 기능을 자유롭게 남겨 주세요. 마음에 드는 의견엔 👍를 눌러 주세요!</div>
+        <textarea id="bdText" maxlength="300" rows="3" placeholder="이런 기능이 있으면 좋겠어요 / 이 부분이 불편해요 …"></textarea>
+        <div class="row" style="align-items:center;margin-bottom:4px"><span class="cap" id="bdCnt" style="margin:0;flex:none">0/300</span><button class="btn" id="bdPost" style="flex:none;width:auto;padding:10px 22px">올리기</button></div>
+      </div>
+      <div class="seg" style="margin-top:0">
+        <label><input type="radio" name="bds" value="hot" checked><span>👍 인기순</span></label>
+        <label><input type="radio" name="bds" value="new"><span>🕒 최신순</span></label>
+      </div>
+      <div id="bdList"></div>
+    </section>
+
     <!-- 내 정보 탭 -->
     <section class="tabp" data-tab="me">
       <div class="card">
@@ -368,17 +405,6 @@ td.n{cursor:pointer}
           <label><input type="radio" name="rm" value="race"><span>레이스</span></label>
           <label><input type="radio" name="rm" value="territory"><span>칸 차지</span></label>
         </div>
-        <div id="rsolo">
-          <div class="seg" style="margin-top:0">
-            <label><input type="radio" name="rd" value="easy"><span>쉬움</span></label>
-            <label><input type="radio" name="rd" value="normal" checked><span>보통</span></label>
-            <label><input type="radio" name="rd" value="hard"><span>어려움</span></label>
-          </div>
-          <div class="seg" style="margin-top:0">
-            <label><input type="radio" name="rb" value="time" checked><span>최단 기록</span></label>
-            <label><input type="radio" name="rb" value="score"><span>최고 점수</span></label>
-          </div>
-        </div>
         <div id="rank"></div>
       </div>
       <div id="mebar" class="mebar hide"></div>
@@ -397,6 +423,7 @@ td.n{cursor:pointer}
     <button data-tab="play" class="on"><i>🎮</i>플레이</button>
     <button data-tab="rank"><i>🏆</i>랭킹</button>
     <button data-tab="shop"><i>🛍️</i>상점</button>
+    <button data-tab="board"><i>💬</i>게시판</button>
     <button data-tab="me"><i>👤</i>내 정보</button>
   </nav>
 
@@ -743,31 +770,67 @@ function renderMeBar(mb) {
   const c = chgEl(mb.chg); if (c) bar.appendChild(c);
   const g = document.createElement('span'); g.className = 'mg'; g.textContent = mb.rank === 1 ? '👑 현재 1위!' : '1위와 ' + mb.gap + ' 차이'; bar.appendChild(g);
 }
-async function loadRankAll() {
-  const val = (n) => document.querySelector('input[name=' + n + ']:checked').value;
-  const m = val('rm'), d = val('rd'), by = val('rb');
-  $('#rsolo').classList.toggle('hide', m !== 'solo');
-  const el = $('#rank');
+const DIFF_LBL = { easy: '쉬움', normal: '보통', hard: '어려움' };
+let accOpen = '', accBy = { easy: 'time', normal: 'time', hard: 'time' }, accMe = null;
+async function fetchRanking(m, d, by) {
+  const res = await (await fetch('/api/ranking?mode=' + m + '&diff=' + d + '&by=' + by + (user ? '&me=' + encodeURIComponent(user) : ''))).json();
+  return Array.isArray(res) ? { rows: res, me: null } : res;
+}
+function meBarFrom(me, solo, by) {
+  if (!user) return null;
+  if (!me) return { rank: 0 };
+  const gap = solo ? (by === 'score' ? me.first.value - me.row.value : me.row.value - me.first.value) : me.first.wins - me.row.wins;
+  return { rank: me.rank, gap: solo ? (by === 'score' ? gap + '점' : mmss(Math.max(0, gap))) : gap + '승' };
+}
+const soloOpt = (by) => { const sv = (r) => (by === 'score' ? r.value : mmss(r.value)); return { val: sv, cols: [{ h: by === 'score' ? '점수' : '기록', v: sv }, { h: '완료', v: (r) => r.done }] }; };
+async function loadAccBody(d) {
+  const box = document.querySelector('#acc_' + d + ' .accb'); if (!box) return;
+  const by = accBy[d];
   try {
-    const res = await (await fetch('/api/ranking?mode=' + m + '&diff=' + d + '&by=' + by + (user ? '&me=' + encodeURIComponent(user) : ''))).json();
-    const list = Array.isArray(res) ? res : res.rows, me = Array.isArray(res) ? null : res.me;
-    const rate = (r) => { const t = r.wins + r.losses; return t ? Math.round((r.wins / t) * 100) + '%' : '-'; };
-    const solo = m === 'solo', sv = (r) => (by === 'score' ? r.value : mmss(r.value));
-    renderBoard(el, list.slice(0, 10), solo
-      ? { val: sv, cols: [{ h: by === 'score' ? '점수' : '기록', v: sv }, { h: '완료', v: (r) => r.done }] }
-      : { val: (r) => r.wins + '승 ' + r.losses + '패', cols: [{ h: '승', v: (r) => r.wins }, { h: '패', v: (r) => r.losses }, { h: '승률', v: rate }] });
-    let mb = null;
-    if (user) {
-      if (!me) mb = { rank: 0 };
-      else {
-        const gap = solo ? (by === 'score' ? me.first.value - me.row.value : me.row.value - me.first.value) : me.first.wins - me.row.wins;
-        mb = { rank: me.rank, gap: solo ? (by === 'score' ? gap + '점' : mmss(Math.max(0, gap))) : gap + '승' };
-      }
-    }
-    renderMeBar(mb);
+    const { rows, me } = await fetchRanking('solo', d, by);
+    box.textContent = '';
+    const mini = document.createElement('div'); mini.className = 'mini';
+    [['time', '최단 기록'], ['score', '최고 점수']].forEach(([v, t]) => {
+      const b = document.createElement('button'); b.textContent = t; if (by === v) b.className = 'on';
+      b.onclick = () => { accBy[d] = v; loadAccBody(d); }; mini.appendChild(b);
+    });
+    box.appendChild(mini);
+    const bd = document.createElement('div'); box.appendChild(bd);
+    renderBoard(bd, rows.slice(0, 10), soloOpt(by));
+    if (accOpen === d) renderMeBar(meBarFrom(me, true, by));
   } catch {}
 }
-['rm', 'rd', 'rb'].forEach((n) => document.querySelectorAll('input[name=' + n + ']').forEach((r) => r.addEventListener('change', loadRank)));
+async function loadRankAll() {
+  const m = document.querySelector('input[name=rm]:checked').value, el = $('#rank');
+  try {
+    if (m !== 'solo') {
+      const { rows, me } = await fetchRanking(m, 'normal', 'time');
+      const rate = (r) => { const t = r.wins + r.losses; return t ? Math.round((r.wins / t) * 100) + '%' : '-'; };
+      renderBoard(el, rows.slice(0, 10), { val: (r) => r.wins + '승 ' + r.losses + '패', cols: [{ h: '승', v: (r) => r.wins }, { h: '패', v: (r) => r.losses }, { h: '승률', v: rate }] });
+      renderMeBar(meBarFrom(me, false));
+      return;
+    }
+    // 솔로: 난이도별 접이식 (▶를 눌러 펼치기)
+    el.textContent = '';
+    ['easy', 'normal', 'hard'].forEach((d) => {
+      const acc = document.createElement('div'); acc.className = 'acc' + (accOpen === d ? ' open' : ''); acc.id = 'acc_' + d;
+      const h = document.createElement('button'); h.className = 'acch';
+      h.innerHTML = '<span class="tri">▶</span><span></span><span class="pv2"></span>'; h.children[1].textContent = DIFF_LBL[d];
+      h.onclick = () => {
+        const open = accOpen !== d; accOpen = open ? d : '';
+        document.querySelectorAll('.acc').forEach((x) => x.classList.toggle('open', x.id === 'acc_' + accOpen));
+        if (open) loadAccBody(d); else renderMeBar(null);
+      };
+      const body = document.createElement('div'); body.className = 'accb';
+      acc.appendChild(h); acc.appendChild(body); el.appendChild(acc);
+      fetchRanking('solo', d, 'time').then(({ rows }) => {
+        h.querySelector('.pv2').textContent = rows[0] ? '👑 ' + rows[0].nick + ' ' + mmss(rows[0].value) : '기록 없음';
+      }).catch(() => {});
+    });
+    if (accOpen) loadAccBody(accOpen); else renderMeBar(null);
+  } catch {}
+}
+document.querySelectorAll('input[name=rm]').forEach((r) => r.addEventListener('change', loadRank));
 async function loadMyStats() {
   if (!token) return;
   try {
@@ -973,6 +1036,35 @@ $('#adminSettle').onclick = () => guard(async () => {
   await adminCall('season/settle'); toast('정산했어요'); await adminLoad(); loadShop();
 });
 
+/* ---------- 피드백 게시판 ---------- */
+const bdAgo = (ms) => { const m = Math.floor((Date.now() - ms) / 60000); return m < 1 ? '방금' : m < 60 ? m + '분 전' : m < 1440 ? Math.floor(m / 60) + '시간 전' : Math.floor(m / 1440) + '일 전'; };
+function renderBoardList(res) {
+  const box = $('#bdList'); box.textContent = '';
+  if (!res.posts.length) { box.innerHTML = '<div class="empty">아직 글이 없어요. 첫 의견을 남겨 보세요!</div>'; return; }
+  res.posts.forEach((p) => {
+    const d = document.createElement('div'); d.className = 'post';
+    const h = document.createElement('div'); h.className = 'ph';
+    const ic = document.createElement('span'); ic.textContent = p.icon || '🙂'; h.appendChild(ic);
+    const n = document.createElement('span'); setName(n, p.nick, p.color, p.title); n.style.cursor = 'pointer'; n.onclick = () => openProfile(p.nick); h.appendChild(n);
+    const t = document.createElement('span'); t.className = 'pt'; t.textContent = bdAgo(p.at); h.appendChild(t); d.appendChild(h);
+    const b = document.createElement('div'); b.className = 'pb'; b.textContent = p.text; d.appendChild(b);
+    const f = document.createElement('div'); f.className = 'pf';
+    const lk = document.createElement('button'); lk.className = 'lk' + (p.liked ? ' on' : ''); lk.textContent = '👍 ' + p.likes; lk.disabled = p.mine;
+    lk.onclick = () => guard(async () => renderBoardList(await api('board/like', { id: p.id, sort: bdSort() }))); f.appendChild(lk);
+    if (p.mine) { const x = document.createElement('button'); x.className = 'pdel'; x.textContent = '삭제'; x.onclick = () => guard(async () => { if (!confirm('이 글을 삭제할까요?')) return; renderBoardList(await api('board/delete', { id: p.id, sort: bdSort() })); }); f.appendChild(x); }
+    if (!p.mine && shop && shop.admin && adminKey) { const x = document.createElement('button'); x.className = 'pdel'; x.textContent = '🛠 삭제'; x.onclick = () => guard(async () => { if (!confirm(p.nick + '님의 글을 삭제할까요?')) return; await adminCall('board/delete', { id: p.id }); loadBoard(); }); f.appendChild(x); }
+    d.appendChild(f); box.appendChild(d);
+  });
+}
+const bdSort = () => document.querySelector('input[name=bds]:checked').value;
+async function loadBoard() { if (!token) return; try { renderBoardList(await api('board/list', { sort: bdSort() })); } catch {} }
+document.querySelectorAll('input[name=bds]').forEach((r) => r.addEventListener('change', loadBoard));
+$('#bdText').addEventListener('input', () => { $('#bdCnt').textContent = Array.from($('#bdText').value).length + '/300'; });
+$('#bdPost').onclick = () => guard(async () => {
+  const r = await api('board/post', { text: $('#bdText').value, sort: bdSort() });
+  $('#bdText').value = ''; $('#bdCnt').textContent = '0/300'; renderBoardList(r); toast('의견을 올렸어요. 고마워요!');
+});
+
 /* ---------- 탭 / 시트 / 대기 방 목록 ---------- */
 let curTab = 'play';
 function setTab(t) {
@@ -980,7 +1072,7 @@ function setTab(t) {
   document.querySelectorAll('.tabp').forEach((e) => e.classList.toggle('on', e.dataset.tab === t));
   document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.tab === (t === 'admin' ? 'me' : t)));
   window.scrollTo(0, 0);
-  if (t === 'rank') loadRank(); else if (t === 'admin') { if (adminKey) adminLoad().catch(() => {}); } else if (t === 'me') { loadMyStats(); loadShop(); } else if (t === 'shop') loadShop(); else pollLobby();
+  if (t === 'rank') loadRank(); else if (t === 'admin') { if (adminKey) adminLoad().catch(() => {}); } else if (t === 'me') { loadMyStats(); loadShop(); } else if (t === 'shop') loadShop(); else if (t === 'board') loadBoard(); else pollLobby();
 }
 document.querySelectorAll('#nav button').forEach((b) => b.addEventListener('click', () => setTab(b.dataset.tab)));
 function openSheet() { $('#sheet').classList.remove('hide'); }
