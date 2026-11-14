@@ -263,6 +263,11 @@ textarea:focus{border-color:var(--blue)}
 
     <!-- 플레이 탭 -->
     <section class="tabp on" data-tab="play">
+      <div class="card hide" id="resumeCard">
+        <div class="ct">⏯️ 이어하기</div>
+        <div id="resumeInfo" style="font-size:14px;margin-bottom:10px"></div>
+        <button class="btn" id="resumeBtn">이어서 풀기</button>
+      </div>
       <div class="hero">
         <div class="hero-t">🧩 솔로 모드</div>
         <div class="hero-s">혼자 풀며 기록과 점수를 쌓아요 · 클리어하면 코인!</div>
@@ -1083,6 +1088,7 @@ async function pollLobby() {
   if (!token || $('#lobby').classList.contains('hide') || document.hidden) return;
   try {
     const r = await api('lobby');
+    setResume(r.solo);
     if (curTab !== 'play') return;
     const rl = $('#roomList'); rl.innerHTML = '';
     $('#roomCnt').textContent = r.rooms.length ? r.rooms.length + '개' : '';
@@ -1112,7 +1118,18 @@ function openSolo(st) {
   notes = new Array(81).fill(0); undo = []; noteMode = false;
   render();
 }
-async function startSolo(diff) { const r = await api('solo/start', { difficulty: diff }); openSolo(r.state); }
+let savedSolo = null;
+function setResume(info) {
+  savedSolo = info || null;
+  const card = $('#resumeCard'); card.classList.toggle('hide', !info);
+  if (!info) return;
+  $('#resumeInfo').textContent = DIFF_N[info.difficulty] + ' · ' + info.cells + '/' + info.total + '칸 · ⏱ ' + mmss(info.elapsed) + ' · 실수 ' + info.mistakes + '/3 · 시간은 멈춰 있어요';
+}
+$('#resumeBtn').onclick = () => guard(async () => { const r = await api('solo/resume'); openSolo(r.state); });
+async function startSolo(diff) {
+  if (savedSolo && !confirm('저장된 ' + DIFF_N[savedSolo.difficulty] + ' 판(' + savedSolo.cells + '/' + savedSolo.total + '칸)이 사라져요.\n새 판을 시작할까요?')) return;
+  const r = await api('solo/start', { difficulty: diff }); savedSolo = null; openSolo(r.state);
+}
 $('#solo').onclick = () => guard(() => startSolo(document.querySelector('input[name=sd]:checked').value));
 async function call(name, extra) {
   if (S && S.mode === 'solo') {
@@ -1175,7 +1192,7 @@ function toLobby() {
 }
 $('#leave').onclick = async () => {
   const solo = S && S.mode === 'solo';
-  if (S && (S.status === 'playing' || S.status === 'countdown') && !confirm(solo ? '나가면 이번 판은 사라져요. 나갈까요?' : '나가면 기권패 처리돼요. 나갈까요?')) return;
+  if (S && (S.status === 'playing' || S.status === 'countdown') && !confirm(solo ? '나가도 이 판은 3시간 동안 저장돼요. 시간은 멈추고, 플레이 탭에서 이어할 수 있어요. 나갈까요?' : '나가면 기권패 처리돼요. 나갈까요?')) return;
   try { await (solo ? api('solo/leave') : api('leave', sess)); } catch {}
   toLobby();
 };

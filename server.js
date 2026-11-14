@@ -81,7 +81,7 @@ async function initDb() {
 async function shutdown() {
   console.log('[db] 종료 신호 — 마지막 저장 중');
   const kill = setTimeout(() => process.exit(0), 7000);
-  try { refundLiveEscrow(); fs.writeFileSync(ACC_FILE, JSON.stringify(accounts)); fs.writeFileSync(RANK_FILE, JSON.stringify(stats)); } catch {}
+  try { refundLiveEscrow(); persistAllSolos(); fs.writeFileSync(ACC_FILE, JSON.stringify(accounts)); fs.writeFileSync(RANK_FILE, JSON.stringify(stats)); } catch {}
   try { clearTimeout(remoteTimer); remoteTimer = null; if (DB_ON && remoteReady) { dirty.acc = dirty.stats = true; await flushRemote(); } } catch {}
   clearTimeout(kill); process.exit(0);
 }
@@ -201,7 +201,7 @@ function banAccount(nick, reason) {
   const u = userOf(nick); if (!u || u.banned) return;
   u.banned = { at: Date.now(), reason };
   for (const k of Object.keys(accounts.sessions)) if (accounts.sessions[k].nick.toLowerCase() === u.nick.toLowerCase()) delete accounts.sessions[k];
-  solos.delete(u.nick); seen.delete(u.nick);
+  solos.delete(u.nick); unpersistSolo(u.nick); seen.delete(u.nick);
   for (const [code, room] of rooms) {
     if (room.status === 'waiting' && room.players.length === 1 && room.players[0].nick === u.nick) rooms.delete(code);
   }
@@ -870,6 +870,34 @@ function raceHint(room, p, i) {
 
 /* ---------- 솔로 모드 ---------- */
 const solos = new Map();
+const SOLO_KEEP_MS = +process.env.SOLO_KEEP_MS || 3 * 3600e3, SOLO_IDLE_MS = +process.env.SOLO_IDLE_MS || 90e3;
+const RESUME_RANKED = process.env.RESUME_RANKED !== 'off'; // off: 이어하기를 한 판은 랭킹/시즌 기록에서 제외
+function persistSolo(g) { accounts.soloSaved = accounts.soloSaved || {}; accounts.soloSaved[g.nick] = g; saveAcc(); }
+function unpersistSolo(nick) { if (accounts.soloSaved && accounts.soloSaved[nick]) { delete accounts.soloSaved[nick]; saveAcc(); } }
+function soloPause(g, at) { if (g.status === 'playing' && !g.pausedAt) { g.pausedAt = at; g.updated = Date.now(); } }
+// 이어하기: 자리를 비운 시간은 빼 준다 (startedAt을 그만큼 뒤로 민다). idle=true면 창만 닫고 나간 판도 마지막 입력 시각부터 멈춘 것으로 본다
+function soloResume(g, idle) {
+  if (g.status !== 'playing') return g;
+  const now = Date.now();
+  if (idle && !g.pausedAt && now - g.updated > SOLO_IDLE_MS) g.pausedAt = g.updated;
+  if (g.pausedAt) { g.startedAt += now - g.pausedAt; g.pausedAt = 0; g.resumed = true; }
+  g.updated = now; unpersistSolo(g.nick);
+  return g;
+}
+function soloInfo(nick) {
+  const g = solos.get(nick); if (!g || g.status !== 'playing') return null;
+  const end = g.pausedAt || (Date.now() - g.updated > SOLO_IDLE_MS ? g.updated : Date.now());
+  return { difficulty: g.difficulty, cells: g.cells, total: g.total, mistakes: g.mistakes, hints: g.hints, elapsed: Math.max(0, end - g.startedAt), savedAt: g.updated };
+}
+function persistAllSolos() { const now = Date.now(); for (const g of solos.values()) if (g.status === 'playing') { soloPause(g, g.pausedAt || now); persistSolo(g); } }
+function loadSavedSolos() {
+  const sv = accounts.soloSaved || {}, now = Date.now();
+  for (const [n, g] of Object.entries(sv)) {
+    if (!userOf(n) || now - g.updated > SOLO_KEEP_MS || g.status !== 'playing') { delete sv[n]; continue; }
+    if (!g.pausedAt) g.pausedAt = g.updated;
+    solos.set(n, g);
+  }
+}
 const SOLO_CFG = { easy: { base: 1000, par: 480, k: 2 }, normal: { base: 2000, par: 720, k: 3 }, hard: { base: 3000, par: 1080, k: 4 } };
 function soloScore(g, sec) {
   const c = SOLO_CFG[g.difficulty];
@@ -883,7 +911,7 @@ function soloStart(nick, difficulty) {
     mistakes: 0, hints: 0, cells: 0, total: puzzle.filter((v) => !v).length,
     status: 'playing', startedAt: Date.now(), endedAt: 0, result: null, updated: Date.now(),
   };
-  solos.set(nick, g);
+  solos.set(nick, g); unpersistSolo(nick);
   return g;
 }
 function soloView(g) {
@@ -907,13 +935,14 @@ function soloFinish(g, won) {
   if (won) {
     r.score = soloScore(g, sec);
     s.done++; s.totalTime += time;
-    seasonSolo(g.nick, r.score, g.difficulty);
+    const ranked = RESUME_RANKED || !g.resumed;
+    if (ranked) seasonSolo(g.nick, r.score, g.difficulty);
     questEvent(g.nick, 'solo_clear');
     if (!g.mistakes) questEvent(g.nick, 'solo_clean');
     if (!g.hints) questEvent(g.nick, 'solo_nohint');
     if (g.difficulty === 'hard') questEvent(g.nick, 'solo_hard');
-    if (!g.hints && (!s.bestTime || time < s.bestTime)) { s.bestTime = time; r.newBestTime = true; }
-    if (r.score > s.bestScore) { s.bestScore = r.score; r.newBestScore = true; }
+    if (ranked && !g.hints && (!s.bestTime || time < s.bestTime)) { s.bestTime = time; r.newBestTime = true; }
+    if (ranked && r.score > s.bestScore) { s.bestScore = r.score; r.newBestScore = true; }
     const e = eco(g.nick), day = kstDay(), full = SOLO_REWARD[g.difficulty];
     if (e) {
       if (e.daily.soloDate !== day) { e.daily.soloDate = day; e.daily.soloEarned = 0; }
@@ -926,6 +955,7 @@ function soloFinish(g, won) {
 }
 function soloActive(g) {
   if (g.status !== 'playing') throw new Error('이미 끝난 게임이에요');
+  if (g.pausedAt) soloResume(g, false);
   g.updated = Date.now();
 }
 function soloMove(g, i, v) {
@@ -1156,7 +1186,7 @@ const server = http.createServer(async (req, res) => {
             list.push({ code: rm.code, host: host.nick, ...cosm(host.nick), mode: rm.mode, difficulty: rm.difficulty, bet: rm.bet || 0 });
         }
         const names = [...online].sort((a, b) => a.localeCompare(b)).slice(0, 24).map((n) => ({ nick: n, ...cosm(n) }));
-        return json(res, 200, { rooms: list.slice(0, 20), online: online.size, names });
+        return json(res, 200, { rooms: list.slice(0, 20), online: online.size, names, solo: soloInfo(authNick) });
       }
       if (action.startsWith('board/')) {
         if (!authNick) return json(res, 401, { error: '로그인이 필요해요' });
@@ -1198,10 +1228,15 @@ const server = http.createServer(async (req, res) => {
         try {
           const a = action.slice(5);
           if (a === 'start') return json(res, 200, { state: soloView(soloStart(authNick, body.difficulty)) });
-          if (a === 'leave') { solos.delete(authNick); return json(res, 200, { ok: true }); }
+          if (a === 'leave') {
+            const lg = solos.get(authNick);
+            if (lg && lg.status === 'playing') { soloPause(lg, Date.now()); persistSolo(lg); } else { solos.delete(authNick); unpersistSolo(authNick); }
+            return json(res, 200, { ok: true });
+          }
           const g = solos.get(authNick);
           if (!g) throw new Error('진행 중인 솔로 게임이 없어요');
-          if (a === 'state') return json(res, 200, { state: soloView(g) });
+          if (a === 'resume') return json(res, 200, { state: soloView(soloResume(g, true)) });
+          if (a === 'state') return json(res, 200, { state: soloView(soloResume(g, false)) });
           if (a === 'move') return json(res, 200, soloMove(g, body.i, body.v));
           if (a === 'erase') return json(res, 200, soloErase(g, body.i));
           if (a === 'hint') return json(res, 200, soloHint(g, body.i));
@@ -1327,11 +1362,11 @@ setInterval(() => {
     }
     if (now - room.updated > 30 * 60 * 1000 && room.players.every((p) => !p.connected)) rooms.delete(code);
   }
-  for (const [n, g] of solos) if (now - g.updated > 3 * 3600 * 1000) solos.delete(n);
+  for (const [n, g] of solos) if (now - g.updated > SOLO_KEEP_MS) { solos.delete(n); unpersistSolo(n); }
 }, 5000);
 
 initDb().then(() => {
-  refundOrphanEscrow(); ensureSeason();
+  refundOrphanEscrow(); ensureSeason(); loadSavedSolos();
   setInterval(ensureSeason, 20000).unref();
   server.listen(PORT, '0.0.0.0', () => console.log('스도쿠 듀얼 서버 실행 중: http://localhost:' + PORT));
 });
