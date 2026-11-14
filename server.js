@@ -17,14 +17,86 @@ const BONUS = 3;
 const LIVES = 3;
 const GIVENS = { easy: 40, normal: 32, hard: 26 };
 
+
+/* ---------- 영구 저장소 (Upstash Redis REST) ----------
+   UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN 환경변수가 있으면 계정·코인·랭킹을 DB에 저장하고,
+   없으면 기존처럼 파일에만 저장합니다. */
+const DB_URL = (process.env.UPSTASH_REDIS_REST_URL || '').replace(/\/+$/, ''), DB_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || '';
+const DB_ON = !!(DB_URL && DB_TOKEN);
+const K_ACC = 'sd:accounts', K_STATS = 'sd:stats', BACKUP_TTL = 14 * 86400;
+const dirty = { acc: false, stats: false, backup: false };
+const dbInfo = { on: DB_ON, lastOk: 0, lastErr: '', saves: 0, lastBackupDay: '' };
+async function dbCmd(args) {
+  const r = await fetch(DB_URL, { method: 'POST', headers: { Authorization: 'Bearer ' + DB_TOKEN, 'Content-Type': 'application/json' }, body: JSON.stringify(args), signal: AbortSignal.timeout(8000) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.error) throw new Error(j.error || 'DB HTTP ' + r.status);
+  return j.result;
+}
+let remoteTimer = null, remoteChain = Promise.resolve(), remoteReady = !DB_ON;
+function scheduleRemote(ms = 2000) {
+  if (!DB_ON || !remoteReady || remoteTimer) return;
+  remoteTimer = setTimeout(() => { remoteTimer = null; flushRemote(); }, ms);
+}
+function flushRemote() {
+  remoteChain = remoteChain.then(async () => {
+    if (!DB_ON || !remoteReady) return;
+    try {
+      if (dirty.acc) { dirty.acc = false; try { await dbCmd(['SET', K_ACC, JSON.stringify(accounts)]); } catch (e) { dirty.acc = true; throw e; } }
+      if (dirty.stats) { dirty.stats = false; try { await dbCmd(['SET', K_STATS, JSON.stringify(stats)]); } catch (e) { dirty.stats = true; throw e; } }
+      dbInfo.lastOk = Date.now(); dbInfo.lastErr = ''; dbInfo.saves++;
+    } catch (e) {
+      dbInfo.lastErr = String(e.message || e); console.error('[db] 저장 실패, 곧 재시도:', dbInfo.lastErr);
+      scheduleRemote(10000);
+    }
+  });
+  return remoteChain;
+}
+async function backupNow() {
+  if (!DB_ON || !remoteReady) return;
+  const day = kstDay();
+  if (!dirty.backup && dbInfo.lastBackupDay === day) return;
+  try {
+    await dbCmd(['SET', 'sd:backup:accounts:' + day, JSON.stringify(accounts), 'EX', BACKUP_TTL]);
+    await dbCmd(['SET', 'sd:backup:stats:' + day, JSON.stringify(stats), 'EX', BACKUP_TTL]);
+    dirty.backup = false; dbInfo.lastBackupDay = day;
+  } catch (e) { console.error('[db] 백업 실패:', e.message); }
+}
+async function initDb() {
+  if (!DB_ON) { console.log('[db] 외부 DB 미설정 — 파일에만 저장합니다 (재배포하면 초기화될 수 있어요)'); return; }
+  let accRaw, statsRaw, ok = false;
+  for (let i = 1; i <= 6 && !ok; i++) {
+    try { accRaw = await dbCmd(['GET', K_ACC]); statsRaw = await dbCmd(['GET', K_STATS]); ok = true; }
+    catch (e) { console.error('[db] 불러오기 실패 (' + i + '/6):', e.message); await new Promise((r) => setTimeout(r, (+process.env.DB_RETRY_MS || 1500) * i)); }
+  }
+  // 읽기에 실패한 채로 빈 데이터로 시작하면 DB를 덮어써서 전부 날아가므로, 끝내 못 읽으면 시작하지 않는다
+  if (!ok) { console.error('[db] DB에 연결할 수 없어 서버를 시작하지 않습니다 (데이터 보호)'); process.exit(1); }
+  if (accRaw) { accounts = JSON.parse(accRaw); accounts.users = accounts.users || {}; accounts.sessions = accounts.sessions || {}; } else dirty.acc = true;
+  if (statsRaw) { stats = JSON.parse(statsRaw); migrateStats(); } else dirty.stats = true;
+  remoteReady = true;
+  console.log('[db] 불러오기 완료 — 계정 ' + Object.keys(accounts.users).length + '명, 랭킹 ' + Object.keys(stats).length + '명');
+  if (dirty.acc || dirty.stats) { dirty.backup = true; flushRemote(); }
+  setInterval(backupNow, 60 * 60 * 1000).unref();
+  setTimeout(backupNow, +process.env.BACKUP_FIRST_MS || 30 * 1000).unref();
+}
+async function shutdown() {
+  console.log('[db] 종료 신호 — 마지막 저장 중');
+  const kill = setTimeout(() => process.exit(0), 7000);
+  try { clearTimeout(remoteTimer); remoteTimer = null; if (DB_ON && remoteReady) { dirty.acc = dirty.stats = true; await flushRemote(); } } catch {}
+  clearTimeout(kill); process.exit(0);
+}
+process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown);
+
 /* ---------- 통계/랭킹 ---------- */
 const DIFFS = ['easy', 'normal', 'hard'];
 let stats = {};
 try { stats = JSON.parse(fs.readFileSync(RANK_FILE, 'utf8')); } catch {}
-for (const [n, r] of Object.entries(stats)) {
-  if (r && r.wins !== undefined && !r.race) stats[n] = { race: { wins: r.wins, losses: r.losses } };
+function migrateStats() {
+  for (const [n, r] of Object.entries(stats)) {
+    if (r && r.wins !== undefined && !r.race) stats[n] = { race: { wins: r.wins, losses: r.losses } };
+  }
 }
-function saveRanks() { fs.writeFile(RANK_FILE, JSON.stringify(stats), () => {}); }
+migrateStats();
+function saveRanks() { fs.writeFile(RANK_FILE, JSON.stringify(stats), () => {}); dirty.stats = true; dirty.backup = true; scheduleRemote(); }
 function st(nick) {
   const u = stats[nick] || (stats[nick] = {});
   u.race = u.race || { wins: 0, losses: 0 };
@@ -63,6 +135,7 @@ let accTimer = null;
 function saveAcc() {
   clearTimeout(accTimer);
   accTimer = setTimeout(() => fs.writeFile(ACC_FILE, JSON.stringify(accounts), () => {}), 200);
+  dirty.acc = true; dirty.backup = true; scheduleRemote();
 }
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
 const hashPw = (pw, salt) => crypto.scryptSync(pw, salt, 32).toString('hex');
@@ -716,6 +789,21 @@ const server = http.createServer(async (req, res) => {
       const rkey = body.pid ? 'p' + body.pid : body.token ? 't' + sha(String(body.token)) : 'i' + clientIp(req);
       if (!rateLimit(rkey)) return json(res, 429, { error: '요청이 너무 빨라요. 잠시 후 다시 해 주세요' });
 
+      if (action === 'admin/dbstatus' || action === 'admin/restore') {
+        if (!ADMIN_KEY || body.key !== ADMIN_KEY) return json(res, 403, { error: '권한이 없어요' });
+        if (action === 'admin/dbstatus') return json(res, 200, { ...dbInfo, users: Object.keys(accounts.users).length, ranked: Object.keys(stats).length });
+        if (!DB_ON) return json(res, 400, { error: 'DB가 설정되지 않았어요' });
+        try {
+          const day = String(body.day || '');
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return json(res, 400, { error: 'day는 YYYY-MM-DD 형식이에요' });
+          const a = await dbCmd(['GET', 'sd:backup:accounts:' + day]), t = await dbCmd(['GET', 'sd:backup:stats:' + day]);
+          if (!a || !t) return json(res, 404, { error: '해당 날짜의 백업이 없어요' });
+          accounts = JSON.parse(a); accounts.users = accounts.users || {}; accounts.sessions = accounts.sessions || {};
+          stats = JSON.parse(t); migrateStats();
+          dirty.acc = dirty.stats = true; await flushRemote();
+          return json(res, 200, { ok: true, users: Object.keys(accounts.users).length });
+        } catch (e) { return json(res, 500, { error: e.message }); }
+      }
       if (action === 'admin/bans' || action === 'admin/unban') {
         if (!ADMIN_KEY || body.key !== ADMIN_KEY) return json(res, 403, { error: '권한이 없어요' });
         if (action === 'admin/unban') {
@@ -919,4 +1007,4 @@ setInterval(() => {
   for (const [n, g] of solos) if (now - g.updated > 3 * 3600 * 1000) solos.delete(n);
 }, 5000);
 
-server.listen(PORT, '0.0.0.0', () => console.log('스도쿠 듀얼 서버 실행 중: http://localhost:' + PORT));
+initDb().then(() => server.listen(PORT, '0.0.0.0', () => console.log('스도쿠 듀얼 서버 실행 중: http://localhost:' + PORT)));
