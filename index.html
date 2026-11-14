@@ -186,17 +186,17 @@ label.chk span{color:var(--mute);font-size:12px}
 
 /* 랭킹 개선 / 프로필 */
 .pod{display:flex;gap:8px;align-items:flex-end;justify-content:center;margin:6px 0 12px}
-.pod .pc{max-width:170px}
-.pc{flex:1;min-width:0;border:1px solid var(--edge);background:var(--paper);border-radius:14px;padding:10px 4px 10px;text-align:center;cursor:pointer;color:var(--ink);font:inherit}
-.pc.r1{padding-top:16px;padding-bottom:16px;border-color:#f5c542;background:linear-gradient(180deg,rgba(245,197,66,.16),transparent)}
-.pc.r2{border-color:#b8c0cc;background:linear-gradient(180deg,rgba(184,192,204,.16),transparent)}
-.pc.r3{border-color:#d9a066;background:linear-gradient(180deg,rgba(217,160,102,.16),transparent)}
-.pc .pm{font-size:18px;line-height:1}
-.pc .pa{font-size:30px;line-height:1.25}.pc.r1 .pa{font-size:38px}
-.pc .pn{font-size:13px;font-weight:600;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 4px}
-.pc .pv{font-size:13px;margin-top:3px;font-weight:700}
-.pc .pp{font-size:11px;color:var(--mute);margin-top:2px}
-.pc .ttl{display:block;margin:0}
+.pod .pdc{max-width:170px}
+.pdc{flex:1;min-width:0;border:1px solid var(--edge);background:var(--paper);border-radius:14px;padding:10px 4px 10px;text-align:center;cursor:pointer;color:var(--ink);font:inherit}
+.pdc.r1{padding-top:16px;padding-bottom:16px;border-color:#f5c542;background:linear-gradient(180deg,rgba(245,197,66,.16),transparent)}
+.pdc.r2{border-color:#b8c0cc;background:linear-gradient(180deg,rgba(184,192,204,.16),transparent)}
+.pdc.r3{border-color:#d9a066;background:linear-gradient(180deg,rgba(217,160,102,.16),transparent)}
+.pdc .pm{font-size:18px;line-height:1}
+.pdc .pa{font-size:30px;line-height:1.25}.pdc.r1 .pa{font-size:38px}
+.pdc .pn{font-size:13px;font-weight:600;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 4px}
+.pdc .pv{font-size:13px;margin-top:3px;font-weight:700}
+.pdc .pp{font-size:11px;color:var(--mute);margin-top:2px}
+.pdc .ttl{display:block;margin:0}
 .chg{font-size:11px;font-weight:700;margin-left:4px;white-space:nowrap}
 .chg.up{color:#16a34a}.chg.dn{color:#dc2626}.chg.nw{color:var(--blue)}.chg.eq{color:var(--mute);font-weight:500}
 td.n{cursor:pointer}
@@ -249,6 +249,31 @@ textarea:focus{border-color:var(--blue)}
 .sprog{position:relative;height:22px;border-radius:999px;background:var(--card);border:1px solid var(--edge);overflow:hidden}
 .sprog i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--blue);opacity:.28;transition:width .25s}
 .sprog span{position:relative;display:block;text-align:center;font-size:12px;line-height:20px;font-weight:700}
+
+/* 게임 화면: 스크롤 잠금 + 화면 높이에 맞춰 판 크기 조절 (모바일 최적화) */
+html:has(#room:not(.hide)),body:has(#room:not(.hide)){overflow:hidden;overscroll-behavior:none;height:100dvh;min-height:0}
+#room{--chrome:395px;max-height:100dvh;overflow-y:auto;overscroll-behavior:contain;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;user-select:none}
+#room.solo{--chrome:300px}
+#room:has(#legend:not(.hide)){--chrome:325px}
+#room .boardbox{width:min(100%,max(240px,calc(100dvh - var(--chrome) - env(safe-area-inset-bottom))));margin:0 auto}
+.wrap:has(#room:not(.hide)){padding-bottom:calc(10px + env(safe-area-inset-bottom))}
+
+/* 낮은 화면(작은 폰): 간격을 압축해서 판을 더 크게 */
+@media (max-height:720px){
+  #room{--chrome:335px}
+  #room.solo{--chrome:270px}
+  #room:has(#legend:not(.hide)){--chrome:290px}
+  #room .hud{margin-bottom:6px}
+  #room .pc{padding:4px 8px}
+  #room .pc .sc{font-size:17px}
+  #room .pc .hp{min-height:12px;font-size:11px}
+  #room .pc .fz{min-height:0;font-size:11px}
+  #room .meta{margin:0 2px 4px}
+  #room .ctl{margin:6px 0 2px}
+  #room .ctl .ic{width:38px;height:38px;font-size:18px}
+  #room .tools{margin-top:8px}
+  #room .legend{margin:2px 0 4px}
+}
 </style>
 </head>
 <body>
@@ -773,7 +798,7 @@ function renderBoard(el, rows, opt) {
   const pod = document.createElement('div'); pod.className = 'pod';
   [1, 0, 2].forEach((i) => {
     const r = rows[i]; if (!r) { if (rows.length > 1) { const sp = document.createElement('div'); sp.style.flex = '1'; pod.appendChild(sp); } return; }
-    const b = document.createElement('button'); b.className = 'pc r' + (i + 1); b.onclick = () => openProfile(r.nick);
+    const b = document.createElement('button'); b.className = 'pdc r' + (i + 1); b.onclick = () => openProfile(r.nick);
     const m = document.createElement('div'); m.className = 'pm'; m.textContent = ['🥇', '🥈', '🥉'][i]; b.appendChild(m);
     const av = document.createElement('div'); av.className = 'pa'; av.textContent = r.icon || '🙂'; b.appendChild(av);
     const n = document.createElement('div'); n.className = 'pn'; setName(n, r.nick, r.color, ''); const c = chgEl(r.chg); if (c) n.appendChild(c); b.appendChild(n);
