@@ -5,78 +5,96 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>스도쿠 듀얼</title>
 <style>
-:root{--bg:#f8fafc;--card:#fff;--ink:#0f172a;--mute:#64748b;--line:#e2e8f0;--strong:#334155;
---me:#2563eb;--me-bg:#dbeafe;--op:#e11d48;--op-bg:#ffe4e6;--sel:#fef9c3;--rel:#f1f5f9}
+:root{--bg:#fff;--ink:#344861;--mute:#6e7c91;--line:#bec6d4;--blue:#325aaf;--user:#0072e3;
+--sel:#bbdefb;--rel:#e2ebf3;--same:#c3d7ea;--bad:#e55c6c;--bad-bg:#f7cfd6;
+--me:#0072e3;--me-bg:#dbeafe;--op:#e11d48;--op-bg:#ffe4e6;--card:#f5f7fa}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:Pretendard,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;min-height:100vh;display:flex;justify-content:center}
-.wrap{width:100%;max-width:520px;padding:20px 14px 40px}
-h1{font-size:26px;margin:8px 0 4px;letter-spacing:-.02em}
-.sub{color:var(--mute);margin:0 0 20px;font-size:14px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+.wrap{width:100%;max-width:520px;padding:18px 14px 40px}
+h1{font-size:26px;margin:6px 0 2px;letter-spacing:-.02em;color:var(--blue)}
+.sub{color:var(--mute);margin:0 0 16px;font-size:14px}
+.card{background:#fff;border:1px solid #e3e8ef;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(52,72,97,.06)}
 label.f{display:block;font-size:13px;color:var(--mute);margin-bottom:6px}
-input[type=text]{width:100%;font-size:16px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);outline:none}
-input[type=text]:focus{border-color:var(--me)}
-.seg{display:flex;gap:6px;margin:12px 0}
+input[type=text],input[type=password]{width:100%;font-size:16px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);outline:none;margin-bottom:10px}
+input:focus{border-color:var(--blue)}
+.seg{display:flex;gap:6px;margin:6px 0 12px}
 .seg label{flex:1;text-align:center;padding:9px 0;border:1px solid var(--line);border-radius:10px;font-size:14px;cursor:pointer;color:var(--mute)}
 .seg input{display:none}
-.seg input:checked+span{color:#fff}
-.seg label:has(input:checked){background:var(--ink);color:#fff;border-color:var(--ink)}
+.seg label:has(input:checked){background:var(--blue);color:#fff;border-color:var(--blue)}
+.cap{font-size:12px;color:var(--mute);margin:-4px 0 10px}
 button{font:inherit;cursor:pointer}
-.btn{width:100%;padding:13px;border-radius:10px;border:0;font-size:16px;font-weight:600;background:var(--ink);color:#fff}
-.btn.sec{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn{width:100%;padding:13px;border-radius:10px;border:0;font-size:16px;font-weight:600;background:var(--blue);color:#fff}
+.btn.sec{background:#fff;color:var(--blue);border:1px solid var(--blue)}
+.btn.gray{background:#fff;color:var(--ink);border:1px solid var(--line)}
 .btn:disabled{opacity:.4;cursor:default}
-.row{display:flex;gap:8px}
-.row>*{flex:1}
+.row{display:flex;gap:8px}.row>*{flex:1}
 .or{text-align:center;color:var(--mute);font-size:13px;margin:12px 0}
+.userbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-size:15px}
+.userbar button{border:0;background:none;color:var(--mute);font-size:13px;text-decoration:underline}
 table{width:100%;border-collapse:collapse;font-size:14px}
-th,td{padding:7px 4px;text-align:center;border-bottom:1px solid var(--line)}
-th{color:var(--mute);font-weight:500;font-size:12px}
-td.n{text-align:left}
+th,td{padding:7px 4px;text-align:center;border-bottom:1px solid #e3e8ef}
+th{color:var(--mute);font-weight:500;font-size:12px}td.n{text-align:left}
 .empty{color:var(--mute);text-align:center;font-size:14px;padding:10px}
+
 /* 대결 화면 */
-.hud{display:flex;align-items:stretch;gap:8px;margin-bottom:10px}
-.pc{flex:1;border-radius:12px;padding:8px 10px;border:2px solid var(--line);background:#fff;min-width:0}
+.meta{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--mute);margin:2px 2px 8px}
+.meta b{color:var(--ink)}
+.hud{display:flex;gap:8px;margin-bottom:10px}
+.pc{flex:1;border-radius:12px;padding:8px 10px;border:2px solid #e3e8ef;background:var(--card);min-width:0}
 .pc.me{border-color:var(--me);background:var(--me-bg)}
 .pc.op{border-color:var(--op);background:var(--op-bg);text-align:right}
 .pc .nm{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pc .sc{font-size:26px;font-weight:700;line-height:1.1}
-.pc .hp{font-size:13px;letter-spacing:1px;min-height:18px}
+.pc .sc{font-size:24px;font-weight:700;line-height:1.15}
+.pc .hp{font-size:12px;min-height:16px}
 .pc .fz{font-size:12px;color:#0369a1;min-height:14px}
-.mid{display:flex;flex-direction:column;align-items:center;justify-content:center;width:62px;font-variant-numeric:tabular-nums;color:var(--mute);font-size:14px}
+.bar{height:6px;border-radius:3px;background:rgba(52,72,97,.12);margin:4px 0;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--me);transition:width .3s}
+.pc.op .bar i{background:var(--op);margin-left:auto}
+.mid{display:flex;flex-direction:column;align-items:center;justify-content:center;width:58px;font-variant-numeric:tabular-nums;color:var(--mute);font-size:15px}
 .boardbox{position:relative}
-.board{display:grid;grid-template-columns:repeat(9,1fr);border-left:2px solid var(--strong);border-top:2px solid var(--strong);background:#fff;aspect-ratio:1;user-select:none;touch-action:manipulation}
-.c{display:flex;align-items:center;justify-content:center;border-right:1px solid var(--line);border-bottom:1px solid var(--line);font-size:clamp(16px,5.6vw,28px);cursor:pointer;position:relative;transition:background .12s}
-.c.cr{border-right:2px solid var(--strong)}
-.c.rb{border-bottom:2px solid var(--strong)}
+.board{display:grid;grid-template-columns:repeat(9,1fr);border-left:2px solid var(--ink);border-top:2px solid var(--ink);background:#fff;aspect-ratio:1;user-select:none;touch-action:manipulation}
+.c{display:flex;align-items:center;justify-content:center;border-right:1px solid var(--line);border-bottom:1px solid var(--line);font-size:clamp(18px,6vw,30px);cursor:pointer;position:relative;color:var(--user);transition:background .1s}
+.c.cr{border-right:2px solid var(--ink)}
+.c.rb{border-bottom:2px solid var(--ink)}
 .c.rel{background:var(--rel)}
-.c.same{background:#e0e7ff}
-.c.given{font-weight:700;color:var(--ink)}
+.c.same{background:var(--same)}
+.c.given{color:var(--ink);font-weight:500}
+.c.bad{color:var(--bad);background:var(--bad-bg)}
 .c.mine{background:var(--me-bg);color:var(--me);font-weight:600}
 .c.theirs{background:var(--op-bg);color:var(--op);font-weight:600}
-.c.sel{background:var(--sel);outline:2px solid #eab308;outline-offset:-2px;z-index:1}
+.c.sel{background:var(--sel)}
 .c.opcur{box-shadow:inset 0 0 0 2px var(--op);z-index:1}
-.c.pop{animation:pop .35s}
-.c.shake{animation:shake .35s;background:#fecaca}
+.c.pop{animation:pop .3s}
+.c.shake{animation:shake .3s}
+.nt{display:grid;grid-template-columns:repeat(3,1fr);width:100%;height:100%;font-size:clamp(8px,2.4vw,12px);color:var(--mute);font-weight:500}
+.nt span{display:flex;align-items:center;justify-content:center}
 @keyframes pop{0%{transform:scale(.7)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
-.board.dim{filter:blur(6px);pointer-events:none}
+.board.dim{filter:blur(7px);pointer-events:none}
 .ov{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:16px}
-.ov .box{background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:16px;padding:20px;width:100%;max-width:340px;box-shadow:0 8px 30px rgba(15,23,42,.12)}
-.code{font-size:40px;font-weight:800;letter-spacing:.18em;margin:6px 0 10px}
-.big{font-size:84px;font-weight:800}
-.res{font-size:30px;font-weight:800;margin-bottom:4px}
-.res.w{color:var(--me)}.res.l{color:var(--op)}
-.frz{position:absolute;inset:0;background:rgba(186,230,253,.55);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#0369a1;pointer-events:none;border-radius:2px}
-.pad{display:grid;grid-template-columns:repeat(9,1fr);gap:5px;margin-top:12px}
-.pad button{padding:10px 0;font-size:20px;border:1px solid var(--line);background:#fff;border-radius:10px;color:var(--ink)}
+.ov .box{background:rgba(255,255,255,.97);border:1px solid #e3e8ef;border-radius:16px;padding:20px;width:100%;max-width:340px;box-shadow:0 8px 30px rgba(52,72,97,.15)}
+.code{font-size:40px;font-weight:800;letter-spacing:.18em;margin:6px 0 10px;color:var(--blue)}
+.big{font-size:84px;font-weight:800;color:var(--blue)}
+.res{font-size:30px;font-weight:800;margin-bottom:4px}.res.w{color:var(--me)}.res.l{color:var(--op)}
+.frz{position:absolute;inset:0;background:rgba(186,230,253,.55);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#0369a1;pointer-events:none}
+.ctl{display:flex;justify-content:space-around;margin:12px 0 4px}
+.ctl button{display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:0;color:var(--ink);font-size:12px;padding:4px 8px;position:relative;min-width:64px}
+.ctl .ic{width:44px;height:44px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:20px}
+.ctl button:disabled{opacity:.35}
+.ctl .badge{position:absolute;top:0;right:8px;background:var(--blue);color:#fff;font-size:11px;border-radius:9px;min-width:18px;padding:1px 5px}
+.ctl .badge.off{background:var(--mute)}
+.pad{display:grid;grid-template-columns:repeat(9,1fr);gap:4px;margin-top:10px}
+.pad button{padding:8px 0 6px;font-size:clamp(22px,7vw,34px);border:0;background:var(--card);border-radius:8px;color:var(--user);font-weight:400}
 .pad button:active{background:var(--sel)}
-.pad button:disabled{opacity:.25}
-.tools{display:flex;gap:8px;margin-top:10px}
+.pad button:disabled{opacity:.2}
+.pad.notes button{color:var(--mute)}
+.tools{display:flex;gap:8px;margin-top:12px}
 .tools .btn{padding:10px;font-size:14px}
 .toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:999px;font-size:14px;z-index:9;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center}
 .toast.on{opacity:1}
 .banner{background:#fef3c7;color:#92400e;border-radius:10px;padding:8px 12px;font-size:13px;margin-bottom:10px;text-align:center}
 .hide{display:none!important}
+.solo .pc.op{display:none}
 </style>
 </head>
 <body>
@@ -85,25 +103,74 @@ td.n{text-align:left}
 <!-- 로비 -->
 <div id="lobby">
   <h1>스도쿠 듀얼</h1>
-  <p class="sub">같은 판을 보며 칸을 먼저 맞혀 차지하는 1:1 대결</p>
-  <div class="card">
-    <label class="f" for="nick">닉네임</label>
-    <input id="nick" type="text" maxlength="12" placeholder="최대 12자" autocomplete="off">
-    <div class="seg" id="diff">
-      <label><input type="radio" name="d" value="easy"><span>쉬움</span></label>
-      <label><input type="radio" name="d" value="normal" checked><span>보통</span></label>
-      <label><input type="radio" name="d" value="hard"><span>어려움</span></label>
+  <p class="sub">실시간으로 겨루는 1:1 스도쿠 대결</p>
+
+  <div class="card" id="authCard">
+    <div style="font-weight:700;margin-bottom:10px">로그인</div>
+    <input id="lnick" type="text" maxlength="12" placeholder="닉네임 (2~12자)" autocomplete="username">
+    <input id="lpw" type="password" maxlength="64" placeholder="비밀번호 (4자 이상)" autocomplete="current-password">
+    <div class="row"><button class="btn" id="doLogin">로그인</button><button class="btn sec" id="doSignup">가입하기</button></div>
+    <div class="cap" style="margin:10px 0 0">한 번 로그인하면 이 기기에서는 자동으로 로그인돼요.</div>
+  </div>
+
+  <div id="playCard" class="hide">
+    <div class="userbar"><span>👤 <b id="who"></b></span><button id="logout">로그아웃</button></div>
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:4px">🧩 솔로 모드</div>
+      <div class="cap">혼자 풀며 기록과 점수를 쌓아요 · 힌트 3회 · 실수 3회면 게임 오버</div>
+      <div class="seg">
+        <label><input type="radio" name="sd" value="easy"><span>쉬움</span></label>
+        <label><input type="radio" name="sd" value="normal" checked><span>보통</span></label>
+        <label><input type="radio" name="sd" value="hard"><span>어려움</span></label>
+      </div>
+      <button class="btn" id="solo">▶ 솔로 시작</button>
     </div>
-    <button class="btn" id="match" style="margin-bottom:8px;background:var(--me)">⚡ 랜덤 매칭</button>
-    <button class="btn sec" id="create">방 만들기 (친구 초대)</button>
-    <div class="or">또는 친구가 알려준 코드로 입장</div>
-    <div class="row">
-      <input id="code" type="text" maxlength="5" placeholder="방 코드 5자리" autocomplete="off" style="text-transform:uppercase;letter-spacing:.2em;text-align:center">
-      <button class="btn sec" id="join" style="flex:0 0 100px">입장</button>
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:8px">👥 대결 모드</div>
+      <div class="seg" id="modeSeg">
+        <label><input type="radio" name="m" value="race" checked><span>레이스</span></label>
+        <label><input type="radio" name="m" value="territory"><span>칸 차지</span></label>
+      </div>
+      <div class="cap" id="modeCap">같은 퍼즐을 각자 풀어서 먼저 완성하면 승리</div>
+      <label class="f">난이도</label>
+      <div class="seg" id="diff">
+        <label><input type="radio" name="d" value="easy"><span>쉬움</span></label>
+        <label><input type="radio" name="d" value="normal" checked><span>보통</span></label>
+        <label><input type="radio" name="d" value="hard"><span>어려움</span></label>
+      </div>
+      <button class="btn" id="create">방 만들기 (친구 초대)</button>
+      <div class="or">또는 코드로 입장</div>
+      <div class="row">
+        <input id="code" type="text" maxlength="5" placeholder="방 코드 5자리" autocomplete="off" style="text-transform:uppercase;letter-spacing:.2em;text-align:center;margin:0">
+        <button class="btn sec" id="join" style="flex:0 0 100px">입장</button>
+      </div>
+      <div class="or">혼자 들어가서 바로 상대 찾기</div>
+      <button class="btn gray" id="match">⚡ 랜덤 매칭 (레이스 · 보통)</button>
+    </div>
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:8px">📊 내 기록</div>
+      <div id="mystats"></div>
     </div>
   </div>
+
   <div class="card">
     <div style="font-weight:700;margin-bottom:8px">🏆 랭킹</div>
+    <div class="seg" style="margin-top:0">
+      <label><input type="radio" name="rm" value="solo" checked><span>솔로</span></label>
+      <label><input type="radio" name="rm" value="race"><span>레이스</span></label>
+      <label><input type="radio" name="rm" value="territory"><span>칸 차지</span></label>
+    </div>
+    <div id="rsolo">
+      <div class="seg" style="margin-top:0">
+        <label><input type="radio" name="rd" value="easy"><span>쉬움</span></label>
+        <label><input type="radio" name="rd" value="normal" checked><span>보통</span></label>
+        <label><input type="radio" name="rd" value="hard"><span>어려움</span></label>
+      </div>
+      <div class="seg" style="margin-top:0">
+        <label><input type="radio" name="rb" value="time" checked><span>최단 기록</span></label>
+        <label><input type="radio" name="rb" value="score"><span>최고 점수</span></label>
+      </div>
+    </div>
     <div id="rank"></div>
   </div>
 </div>
@@ -111,21 +178,28 @@ td.n{text-align:left}
 <!-- 방 -->
 <div id="room" class="hide">
   <div id="banner" class="banner hide"></div>
+  <div class="meta"><span>난이도 <b id="diffl"></b> · <b id="model"></b></span><span id="timer" style="font-variant-numeric:tabular-nums"><b>0:00</b></span></div>
   <div class="hud">
-    <div class="pc me"><div class="nm" id="mn"></div><div class="sc" id="ms">0</div><div class="hp" id="mh"></div><div class="fz" id="mf"></div></div>
-    <div class="mid"><div id="timer">0:00</div><div style="font-size:11px" id="diffl"></div></div>
-    <div class="pc op"><div class="nm" id="on">상대 대기</div><div class="sc" id="os">0</div><div class="hp" id="oh"></div><div class="fz" id="of"></div></div>
+    <div class="pc me"><div class="nm" id="mn"></div><div class="sc" id="ms">0</div><div class="bar"><i id="mbar"></i></div><div class="hp" id="mh"></div><div class="fz" id="mf"></div></div>
+    <div class="pc op"><div class="nm" id="on">상대 대기</div><div class="sc" id="os">0</div><div class="bar"><i id="obar"></i></div><div class="hp" id="oh"></div><div class="fz" id="of"></div></div>
   </div>
   <div class="boardbox">
     <div class="board" id="board"></div>
     <div class="frz hide" id="frz"></div>
     <div class="ov hide" id="ov"></div>
   </div>
+
+  <div class="ctl" id="ctlRace">
+    <button id="bUndo"><span class="ic">↩️</span>실행 취소</button>
+    <button id="bErase"><span class="ic">🧽</span>지우기</button>
+    <button id="bNote"><span class="ic">✏️</span>메모<span class="badge off" id="noteBadge">OFF</span></button>
+    <button id="bHint"><span class="ic">💡</span>힌트<span class="badge" id="hintBadge">3</span></button>
+  </div>
   <div class="pad" id="pad"></div>
   <div class="tools">
-    <button class="btn sec" id="item">❄️ 상대 3초 동결 (1회)</button>
-    <button class="btn sec" id="mute" style="flex:0 0 56px">🔊</button>
-    <button class="btn sec" id="leave" style="flex:0 0 90px">나가기</button>
+    <button class="btn gray hide" id="item">❄️ 상대 3초 동결 (1회)</button>
+    <button class="btn gray" id="mute" style="flex:0 0 56px">🔊</button>
+    <button class="btn gray" id="leave" style="flex:0 0 90px">나가기</button>
   </div>
 </div>
 
@@ -134,7 +208,9 @@ td.n{text-align:left}
 
 <script>
 const $ = (s) => document.querySelector(s);
+let token = localStorage.getItem('sd_token') || '', user = '';
 let sess = null, S = null, es = null, sel = -1, offset = 0, lastSeq = 0, busy = false, firstState = true;
+let noteMode = false, notes = new Array(81).fill(0), undo = [];
 const cells = [];
 
 /* ---------- 유틸 ---------- */
@@ -142,16 +218,16 @@ function toast(msg, ms = 1800) {
   const t = $('#toast'); t.textContent = msg; t.classList.add('on');
   clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), ms);
 }
-async function api(p, body) {
-  const r = await fetch('/api/' + p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+async function api(p, body = {}) {
+  const r = await fetch('/api/' + p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, ...body }) });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j.error || '오류가 발생했어요');
+  if (!r.ok) { const e = new Error(j.error || '오류가 발생했어요'); e.status = r.status; throw e; }
   return j;
 }
 const now = () => Date.now() + offset;
 const mmss = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 const hearts = (n) => '❤️'.repeat(Math.max(0, n)) + '🖤'.repeat(Math.max(0, 3 - n));
-
+const isRace = () => S && (S.mode === 'race' || S.mode === 'solo');
 
 /* ---------- 효과음 ---------- */
 let muted = localStorage.getItem('sd_mute') === '1', actx = null;
@@ -168,7 +244,7 @@ function tone(f, d = 0.12, type = 'sine', t0 = 0, vol = 0.08) {
 const SFX = {
   mine: () => { tone(660, 0.1); tone(880, 0.12, 'sine', 0.08); },
   theirs: () => tone(300, 0.12, 'triangle'),
-  wrong: () => { tone(180, 0.25, 'sawtooth', 0, 0.06); },
+  wrong: () => tone(180, 0.25, 'sawtooth', 0, 0.06),
   bonus: () => [523, 659, 784, 1047].forEach((f, k) => tone(f, 0.14, 'sine', k * 0.08)),
   freeze: () => { tone(1200, 0.1, 'square', 0, 0.04); tone(800, 0.2, 'square', 0.1, 0.04); },
   tick: () => tone(520, 0.08, 'square', 0, 0.04),
@@ -180,52 +256,105 @@ $('#mute').onclick = () => { muted = !muted; localStorage.setItem('sd_mute', mut
 $('#mute').textContent = muted ? '🔇' : '🔊';
 let prevStatus = null, prevCd = 0;
 
+/* ---------- 로그인 ---------- */
+function setUser(nick, tok) {
+  user = nick; if (tok) { token = tok; localStorage.setItem('sd_token', tok); }
+  $('#who').textContent = nick;
+  $('#authCard').classList.add('hide'); $('#playCard').classList.remove('hide');
+  loadMyStats(); loadRank();
+}
+function showAuth() {
+  user = ''; token = ''; localStorage.removeItem('sd_token');
+  $('#authCard').classList.remove('hide'); $('#playCard').classList.add('hide');
+}
+async function auth(kind) {
+  const nick = $('#lnick').value.trim(), pw = $('#lpw').value;
+  if (!nick || !pw) return toast('닉네임과 비밀번호를 입력해 주세요');
+  try { const r = await api(kind, { nick, pw }); $('#lpw').value = ''; setUser(r.nick, r.token); }
+  catch (e) { toast(e.message, 2600); }
+}
+$('#doLogin').onclick = () => auth('login');
+$('#doSignup').onclick = () => auth('signup');
+$('#lpw').addEventListener('keydown', (e) => { if (e.key === 'Enter') auth('login'); });
+$('#logout').onclick = async () => { try { await api('logout'); } catch {} showAuth(); };
+
 /* ---------- 로비 ---------- */
 async function loadRank() {
+  const val = (n) => document.querySelector('input[name=' + n + ']:checked').value;
+  const m = val('rm'), d = val('rd'), by = val('rb');
+  $('#rsolo').classList.toggle('hide', m !== 'solo');
+  const el = $('#rank');
   try {
-    const list = await (await fetch('/api/ranking')).json();
-    const el = $('#rank');
-    if (!list.length) { el.innerHTML = '<div class="empty">아직 기록이 없어요. 첫 승리를 차지해 보세요!</div>'; return; }
-    el.innerHTML = '<table><tr><th>#</th><th style="text-align:left">닉네임</th><th>승</th><th>패</th><th>승률</th></tr></table>';
-    const tb = el.firstChild;
+    const list = await (await fetch('/api/ranking?mode=' + m + '&diff=' + d + '&by=' + by)).json();
+    if (!list.length) { el.innerHTML = '<div class="empty">아직 기록이 없어요. 첫 기록의 주인공이 되어 보세요!</div>'; return; }
+    const head = m === 'solo' ? ['#', '닉네임', by === 'score' ? '점수' : '기록', '완료'] : ['#', '닉네임', '승', '패', '승률'];
+    el.innerHTML = '<table></table>';
+    const tb = el.firstChild, hr = document.createElement('tr');
+    head.forEach((t, k) => { const th = document.createElement('th'); if (k === 1) th.style.textAlign = 'left'; th.textContent = t; hr.appendChild(th); });
+    tb.appendChild(hr);
     list.slice(0, 10).forEach((r, i) => {
       const tr = document.createElement('tr');
-      const tot = r.wins + r.losses;
-      const cellsText = [i + 1, r.nick, r.wins, r.losses, tot ? Math.round((r.wins / tot) * 100) + '%' : '-'];
-      cellsText.forEach((v, k) => { const td = document.createElement('td'); if (k === 1) td.className = 'n'; td.textContent = v; tr.appendChild(td); });
+      let row;
+      if (m === 'solo') row = [i + 1, r.nick, by === 'score' ? r.value : mmss(r.value), r.done];
+      else { const tot = r.wins + r.losses; row = [i + 1, r.nick, r.wins, r.losses, tot ? Math.round((r.wins / tot) * 100) + '%' : '-']; }
+      row.forEach((v, k) => { const td = document.createElement('td'); if (k === 1) { td.className = 'n'; if (r.nick === user) td.style.fontWeight = '700'; } td.textContent = v; tr.appendChild(td); });
       tb.appendChild(tr);
     });
   } catch {}
 }
-function getNick() {
-  const n = $('#nick').value.trim();
-  if (!n) { toast('닉네임을 입력해 주세요'); $('#nick').focus(); return null; }
-  localStorage.setItem('sd_nick', n);
-  return n;
-}
-$('#create').onclick = async () => {
-  const nick = getNick(); if (!nick) return;
+['rm', 'rd', 'rb'].forEach((n) => document.querySelectorAll('input[name=' + n + ']').forEach((r) => r.addEventListener('change', loadRank)));
+async function loadMyStats() {
+  if (!token) return;
   try {
-    const d = document.querySelector('input[name=d]:checked').value;
-    const r = await api('create', { nick, difficulty: d });
-    enter(r.code, r.pid);
-  } catch (e) { toast(e.message); }
-};
-$('#match').onclick = async () => {
-  const nick = getNick(); if (!nick) return;
-  try { const r = await api('match', { nick }); enter(r.code, r.pid); if (!r.matched) toast('상대를 찾는 중이에요…', 2500); }
-  catch (e) { toast(e.message); }
-};
-$('#join').onclick = async () => {
-  const nick = getNick(); if (!nick) return;
+    const u = await api('mystats'), el = $('#mystats'), names = { easy: '쉬움', normal: '보통', hard: '어려움' };
+    let t = '<table><tr><th>솔로</th><th>완료</th><th>최단</th><th>최고점</th><th>평균</th></tr>';
+    for (const d of ['easy', 'normal', 'hard']) {
+      const s = u.solo[d];
+      t += '<tr><td>' + names[d] + '</td><td>' + s.done + '</td><td>' + (s.bestTime ? mmss(s.bestTime) : '-') + '</td><td>' + (s.bestScore || '-') + '</td><td>' + (s.done ? mmss(s.totalTime / s.done) : '-') + '</td></tr>';
+    }
+    const wl = (r) => { const n = r.wins + r.losses; return r.wins + '승 ' + r.losses + '패' + (n ? ' (' + Math.round((r.wins / n) * 100) + '%)' : ''); };
+    el.innerHTML = t + '</table><div style="margin-top:10px;font-size:14px">레이스 ' + wl(u.race) + ' · 칸 차지 ' + wl(u.territory) + '</div>';
+  } catch {}
+}
+document.querySelectorAll('input[name=m]').forEach((r) => r.addEventListener('change', () => {
+  $('#modeCap').textContent = r.value === 'race' ? '같은 퍼즐을 각자 풀어서 먼저 완성하면 승리' : '한 판을 같이 보며 정답을 먼저 맞힌 칸을 차지, 더 많이 차지하면 승리';
+}));
+async function guard(fn) {
+  try { await fn(); } catch (e) { if (e.status === 401) { showAuth(); toast('다시 로그인해 주세요'); } else toast(e.message); }
+}
+$('#create').onclick = () => guard(async () => {
+  const mode = document.querySelector('input[name=m]:checked').value, difficulty = document.querySelector('input[name=d]:checked').value;
+  const r = await api('create', { mode, difficulty }); enter(r.code, r.pid);
+});
+$('#join').onclick = () => guard(async () => {
   const code = $('#code').value.trim().toUpperCase();
   if (code.length !== 5) return toast('방 코드 5자리를 입력해 주세요');
-  try { const r = await api('join', { nick, code }); enter(r.code, r.pid); }
-  catch (e) { toast(e.message); }
-};
+  const r = await api('join', { code }); enter(r.code, r.pid);
+});
+$('#match').onclick = () => guard(async () => {
+  const r = await api('match'); enter(r.code, r.pid); if (!r.matched) toast('상대를 찾는 중이에요…', 2500);
+});
+function openSolo(st) {
+  if (es) es.close(); es = null; sess = null;
+  sessionStorage.setItem('sd_solo', '1'); sessionStorage.removeItem('sd_sess');
+  $('#lobby').classList.add('hide'); $('#room').classList.remove('hide'); $('#room').classList.add('solo');
+  S = st; offset = S.now - Date.now(); sel = -1; firstState = false; prevStatus = null; prevCd = 0;
+  notes = new Array(81).fill(0); undo = []; noteMode = false;
+  render();
+}
+async function startSolo(diff) { const r = await api('solo/start', { difficulty: diff }); openSolo(r.state); }
+$('#solo').onclick = () => guard(() => startSolo(document.querySelector('input[name=sd]:checked').value));
+async function call(name, extra) {
+  if (S && S.mode === 'solo') {
+    const r = await api('solo/' + name, extra);
+    if (r.state) { S = r.state; offset = S.now - Date.now(); render(); }
+    return r;
+  }
+  return api(name, { ...sess, ...extra });
+}
 $('#code').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#join').click(); });
 
-/* ---------- 보드 생성 ---------- */
+/* ---------- 보드/패드 생성 ---------- */
 (function build() {
   const b = $('#board');
   for (let i = 0; i < 81; i++) {
@@ -246,15 +375,19 @@ function enter(code, pid) {
   sess = { code, pid };
   sessionStorage.setItem('sd_sess', JSON.stringify(sess));
   history.replaceState(null, '', location.pathname);
-  $('#lobby').classList.add('hide'); $('#room').classList.remove('hide');
+  $('#lobby').classList.add('hide'); $('#room').classList.remove('hide'); $('#room').classList.remove('solo');
+  sessionStorage.removeItem('sd_solo');
   S = null; sel = -1; firstState = true; prevStatus = null; prevCd = 0;
+  notes = new Array(81).fill(0); undo = []; noteMode = false;
   connect();
 }
 function connect() {
   if (es) es.close();
   es = new EventSource('/api/events?code=' + sess.code + '&pid=' + sess.pid);
   es.onmessage = (e) => {
+    const gameChanged = S && S.status === 'finished' && JSON.parse(e.data).status === 'countdown';
     S = JSON.parse(e.data);
+    if (gameChanged) { notes = new Array(81).fill(0); undo = []; sel = -1; }
     offset = S.now - Date.now();
     $('#banner').classList.add('hide');
     handleEvents(); render();
@@ -266,36 +399,89 @@ function connect() {
 }
 function toLobby() {
   if (es) es.close(); es = null; sess = null; S = null;
-  sessionStorage.removeItem('sd_sess');
-  $('#room').classList.add('hide'); $('#lobby').classList.remove('hide');
-  loadRank();
+  sessionStorage.removeItem('sd_sess'); sessionStorage.removeItem('sd_solo');
+  $('#room').classList.add('hide'); $('#room').classList.remove('solo'); $('#lobby').classList.remove('hide');
+  loadRank(); loadMyStats();
 }
 $('#leave').onclick = async () => {
-  if (S && (S.status === 'playing' || S.status === 'countdown') && !confirm('나가면 기권패 처리돼요. 나갈까요?')) return;
-  try { await api('leave', sess); } catch {}
+  const solo = S && S.mode === 'solo';
+  if (S && (S.status === 'playing' || S.status === 'countdown') && !confirm(solo ? '나가면 이번 판은 사라져요. 나갈까요?' : '나가면 기권패 처리돼요. 나갈까요?')) return;
+  try { await (solo ? api('solo/leave') : api('leave', sess)); } catch {}
   toLobby();
 };
-$('#item').onclick = async () => {
-  try { await api('item', sess); } catch (e) { toast(e.message); }
-};
+$('#item').onclick = () => api('item', sess).catch((e) => toast(e.message));
 
 /* ---------- 입력 ---------- */
+const peers = (i) => { const r = Math.floor(i / 9), c = i % 9, br = r - r % 3, bc = c - c % 3, out = []; for (let k = 0; k < 81; k++) { const rr = Math.floor(k / 9), cc = k % 9; if (rr === r || cc === c || (rr >= br && rr < br + 3 && cc >= bc && cc < bc + 3)) out.push(k); } return out; };
+const editable = (i) => S && S.puzzle && !S.puzzle[i];
+
 async function place(v) {
   if (!S || S.status !== 'playing' || busy) return;
   if (sel < 0) return toast('칸을 먼저 선택해 주세요');
-  if (S.puzzle[sel] || S.owner[sel]) return toast('이미 채워진 칸이에요');
+  if (S.puzzle[sel]) return toast('주어진 칸이에요');
   const me = S.players.find((p) => p.idx === S.you);
   if (me.frozenUntil > now()) return;
+
+  if (isRace()) {
+    const cur = S.values[sel], isBad = S.wrong && S.wrong[sel];
+    if (cur && !isBad) return toast('이미 맞힌 칸이에요');
+    if (noteMode) {
+      if (isBad) return toast('틀린 숫자를 먼저 지워 주세요');
+      undo.push({ t: 'note', i: sel, prev: notes[sel] });
+      notes[sel] ^= 1 << v; render(); return;
+    }
+  } else if (S.owner[sel]) return toast('이미 차지한 칸이에요');
+
   busy = true; const i = sel;
   try {
-    const r = await api('move', { ...sess, i, v });
-    if (!r.correct) { cells[i].classList.add('shake'); setTimeout(() => cells[i].classList.remove('shake'), 400); }
+    const r = await call('move', { i, v });
+    if (r.correct) {
+      if (isRace()) {
+        SFX.mine();
+        notes[i] = 0; peers(i).forEach((k) => { notes[k] &= ~(1 << v); });
+        undo = undo.filter((u) => u.i !== i);
+      }
+    } else if (!r.same) {
+      SFX.wrong();
+      cells[i].classList.add('shake'); setTimeout(() => cells[i].classList.remove('shake'), 350);
+      if (isRace()) { undo.push({ t: 'wrong', i }); notes[i] = 0; toast('틀렸어요! 실수 +1'); }
+    }
   } catch (e) { toast(e.message); }
   busy = false;
 }
+async function eraseCell() {
+  if (!isRace() || S.status !== 'playing' || sel < 0) return;
+  if (S.wrong && S.wrong[sel]) { try { await call('erase', { i: sel }); } catch (e) { toast(e.message); } }
+  else if (notes[sel]) { undo.push({ t: 'note', i: sel, prev: notes[sel] }); notes[sel] = 0; render(); }
+  else toast('지울 내용이 없어요');
+}
+async function undoMove() {
+  if (!isRace() || S.status !== 'playing') return;
+  const u = undo.pop();
+  if (!u) return toast('되돌릴 내용이 없어요');
+  if (u.t === 'note') { notes[u.i] = u.prev; sel = u.i; render(); }
+  else if (S.wrong && S.wrong[u.i]) { try { await call('erase', { i: u.i }); sel = u.i; } catch (e) { toast(e.message); } }
+  else undoMove();
+}
+async function useHint() {
+  if (!isRace() || S.status !== 'playing') return;
+  try {
+    const r = await call('hint', { i: sel });
+    notes[r.i] = 0; peers(r.i).forEach((k) => { notes[k] &= ~(1 << r.v); });
+    undo = undo.filter((u) => u.i !== r.i); sel = r.i; SFX.mine();
+    cells[r.i].classList.add('pop'); setTimeout(() => cells[r.i].classList.remove('pop'), 350);
+  } catch (e) { toast(e.message); }
+}
+function toggleNote() { noteMode = !noteMode; render(); }
+$('#bUndo').onclick = undoMove; $('#bErase').onclick = eraseCell; $('#bNote').onclick = toggleNote; $('#bHint').onclick = useHint;
+
 document.addEventListener('keydown', (e) => {
   if (!S || $('#room').classList.contains('hide')) return;
   if (e.key >= '1' && e.key <= '9') return place(+e.key);
+  if (e.key === 'Backspace' || e.key === 'Delete') return eraseCell();
+  if (e.key === 'n' || e.key === 'N') return toggleNote();
+  if (e.key === 'h' || e.key === 'H') return useHint();
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); return undoMove(); }
   const mv = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -9, ArrowDown: 9 }[e.key];
   if (mv) {
     e.preventDefault();
@@ -308,14 +494,15 @@ document.addEventListener('keydown', (e) => {
 
 let curT = 0;
 function sendCursor() {
-  if (!S || S.status !== 'playing') return;
+  if (!S || S.status !== 'playing' || isRace()) return;
   clearTimeout(curT);
-  curT = setTimeout(() => { fetch('/api/cursor', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sess, i: sel }) }).catch(() => {}); }, 60);
+  curT = setTimeout(() => { api('cursor', { ...sess, i: sel }).catch(() => {}); }, 60);
 }
-/* ---------- 이벤트(토스트/애니메이션) ---------- */
+
+/* ---------- 이벤트(칸 차지 모드 토스트/애니메이션) ---------- */
 function handleEvents() {
   const l = S.last;
-  if (!l || !l.seq) { lastSeq = l ? l.seq : 0; return; }
+  if (isRace() || !l || !l.seq) { lastSeq = l ? l.seq : 0; firstState = false; return; }
   if (firstState) { lastSeq = l.seq; firstState = false; return; }
   if (l.seq === lastSeq) return;
   lastSeq = l.seq;
@@ -324,21 +511,40 @@ function handleEvents() {
   if (l.type === 'bonus') SFX.bonus();
   if (l.type === 'wrong') (mine ? SFX.wrong : SFX.theirs)();
   if (l.type === 'freeze') SFX.freeze();
-  if (l.type === 'capture' && l.cell != null) { cells[l.cell].classList.add('pop'); setTimeout(() => cells[l.cell].classList.remove('pop'), 400); }
-  if (l.type === 'bonus') { cells[l.cell].classList.add('pop'); toast((mine ? '내가' : '상대가') + ' ' + l.bonuses.join('·') + ' 완전 점령! +3', 2200); }
+  if ((l.type === 'capture' || l.type === 'bonus') && l.cell != null) { cells[l.cell].classList.add('pop'); setTimeout(() => cells[l.cell].classList.remove('pop'), 400); }
+  if (l.type === 'bonus') toast((mine ? '내가' : '상대가') + ' ' + l.bonuses.join('·') + ' 완전 점령! +3', 2200);
   if (l.type === 'wrong') toast(mine ? '오답! 목숨이 줄었어요' : '상대가 오답을 입력했어요');
   if (l.type === 'freeze') toast(mine ? '❄️ 상대를 3초 동결!' : '❄️ 동결당했어요!');
 }
 
 /* ---------- 렌더 ---------- */
+function noteHTML(mask) {
+  let h = '<div class="nt">';
+  for (let v = 1; v <= 9; v++) h += '<span>' + (mask & (1 << v) ? v : '') + '</span>';
+  return h + '</div>';
+}
 function render() {
   if (!S) return;
+  const race = isRace();
   const me = S.players.find((p) => p.idx === S.you), op = S.players.find((p) => p.idx !== S.you);
   $('#mn').textContent = me.nick + ' (나)';
-  $('#ms').textContent = me.score; $('#mh').textContent = hearts(me.lives);
   $('#on').textContent = op ? op.nick : '상대 대기 중';
-  $('#os').textContent = op ? op.score : 0; $('#oh').textContent = op ? hearts(op.lives) : '';
   $('#diffl').textContent = { easy: '쉬움', normal: '보통', hard: '어려움' }[S.difficulty];
+  $('#model').textContent = { solo: '솔로', race: '레이스', territory: '칸 차지' }[S.mode];
+  const pct = (p) => (S.total ? Math.round((p.cells / S.total) * 100) : 0);
+  if (race) {
+    $('#ms').textContent = pct(me) + '%'; $('#os').textContent = op ? pct(op) + '%' : '0%';
+    $('#mbar').style.width = pct(me) + '%'; $('#obar').style.width = op ? pct(op) + '%' : '0%';
+    $('#mh').textContent = '실수 ' + (3 - me.lives) + '/3 · 힌트 ' + me.hints + '/3';
+    $('#oh').textContent = op ? '실수 ' + (3 - op.lives) + '/3 · 힌트 ' + op.hints + '/3' : '';
+  } else {
+    $('#ms').textContent = me.score; $('#os').textContent = op ? op.score : 0;
+    $('#mbar').style.width = '0'; $('#obar').style.width = '0';
+    $('#mh').textContent = hearts(me.lives); $('#oh').textContent = op ? hearts(op.lives) : '';
+  }
+  $('#ctlRace').classList.toggle('hide', !race);
+  $('#item').classList.toggle('hide', race);
+  document.querySelectorAll('.bar').forEach((b) => b.classList.toggle('hide', !race));
 
   const playing = S.status === 'playing' || S.status === 'finished';
   const board = $('#board');
@@ -349,25 +555,35 @@ function render() {
   for (let i = 0; i < 81; i++) {
     const el = cells[i];
     const v = S.values ? S.values[i] : 0;
-    el.textContent = v || '';
-    if (v) counts[v]++;
+    const bad = race && S.wrong && S.wrong[i];
+    if (v && !bad) counts[v]++;
+    const key = v + '|' + (race && !v ? notes[i] : 0);
+    if (el._k !== key) {
+      el._k = key;
+      if (v) el.textContent = v; else if (race && notes[i]) el.innerHTML = noteHTML(notes[i]); else el.textContent = '';
+    }
     let cls = 'c' + (i % 9 % 3 === 2 ? ' cr' : '') + (Math.floor(i / 9) % 3 === 2 ? ' rb' : '');
     if (S.puzzle && S.puzzle[i]) cls += ' given';
-    else if (S.owner && S.owner[i]) cls += S.owner[i] === S.you ? ' mine' : ' theirs';
+    else if (bad) cls += ' bad';
+    else if (!race && S.owner && S.owner[i]) cls += S.owner[i] === S.you ? ' mine' : ' theirs';
     if (sel >= 0 && playing) {
       const r = Math.floor(i / 9), c = i % 9;
       const related = r === sr || c === sc || (Math.floor(r / 3) === Math.floor(sr / 3) && Math.floor(c / 3) === Math.floor(sc / 3));
       if (i === sel) cls += ' sel';
-      else if (selv && v === selv) cls += ' same';
-      else if (related && !(S.owner && S.owner[i])) cls += ' rel';
+      else if (selv && v === selv && !bad) cls += ' same';
+      else if (related && !bad && !(!race && S.owner && S.owner[i])) cls += ' rel';
     }
     if (op && op.cursor === i && S.status === 'playing') cls += ' opcur';
-    // 진행 중 애니메이션 클래스 보존
     ['pop', 'shake'].forEach((k) => { if (el.classList.contains(k)) cls += ' ' + k; });
     el.className = cls;
   }
   document.querySelectorAll('#pad button').forEach((b) => { b.disabled = counts[+b.dataset.v] >= 9 || S.status !== 'playing'; });
+  $('#pad').classList.toggle('notes', race && noteMode);
 
+  $('#noteBadge').textContent = noteMode ? 'ON' : 'OFF'; $('#noteBadge').classList.toggle('off', !noteMode);
+  const left = 3 - me.hints;
+  $('#hintBadge').textContent = left; $('#bHint').disabled = S.status !== 'playing' || left <= 0;
+  ['#bUndo', '#bErase', '#bNote'].forEach((b) => { $(b).disabled = S.status !== 'playing'; });
   const item = $('#item');
   item.disabled = S.status !== 'playing' || me.itemUsed;
   item.textContent = me.itemUsed ? '❄️ 동결 사용함' : '❄️ 상대 3초 동결 (1회)';
@@ -394,29 +610,47 @@ function renderOverlay(me, op) {
     $('#cp').onclick = () => { (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(() => toast('링크를 복사했어요'), () => prompt('링크를 복사하세요', link)); };
   } else if (S.status === 'countdown') {
     box('<div style="color:var(--mute)">곧 시작해요</div><div class="big" id="cd">3</div>');
+  } else if (S.status === 'finished' && S.mode === 'solo') {
+    const r = S.result;
+    const badges = (r.newBestTime ? '<div style="color:var(--blue);font-weight:700;margin-top:4px">🏅 최단 기록 갱신!</div>' : '') +
+      (r.newBestScore ? '<div style="color:var(--blue);font-weight:700;margin-top:4px">⭐ 최고 점수 갱신!</div>' : '') +
+      (r.won && r.hinted ? '<div style="color:var(--mute);font-size:12px;margin-top:6px">힌트를 쓴 판은 최단 기록에 등록되지 않아요</div>' : '');
+    box((r.won
+      ? '<div class="res w">클리어! 🎉</div><div style="font-size:15px;margin:6px 0">⏱ ' + mmss(r.time) + ' · 점수 <b>' + r.score + '</b></div><div style="color:var(--mute);font-size:13px">실수 ' + r.mistakes + ' · 힌트 ' + r.hints + '</div>' + badges
+      : '<div class="res l">게임 오버</div><div style="color:var(--mute);font-size:14px;margin-bottom:6px">실수 3회로 끝났어요</div>') +
+      '<button class="btn" id="sa" style="margin-top:14px">다시 하기</button><button class="btn gray" id="sb" style="margin-top:8px">로비로</button>');
+    $('#sa').onclick = () => guard(() => startSolo(S.difficulty));
+    $('#sb').onclick = () => toLobby();
   } else if (S.status === 'finished') {
     const win = S.winner === S.you, draw = S.winner === 0;
-    const why = { board: '판이 모두 채워졌어요', lives: win ? '상대가 목숨을 모두 잃었어요' : '목숨을 모두 잃었어요', left: win ? '상대가 나갔어요' : '대결에서 나갔어요', disconnect: win ? '상대 연결이 끊겼어요' : '연결이 끊겨 기권 처리됐어요' }[S.reason] || '';
-    let rm = '다시 대결';
-    let dis = false;
+    const why = {
+      board: '판이 모두 채워졌어요', complete: win ? '퍼즐을 먼저 완성했어요' : '상대가 퍼즐을 먼저 완성했어요',
+      lives: win ? '상대가 실수 3회로 탈락했어요' : '실수 3회로 탈락했어요',
+      left: win ? '상대가 나갔어요' : '대결에서 나갔어요', disconnect: win ? '상대 연결이 끊겼어요' : '연결이 끊겨 기권 처리됐어요',
+    }[S.reason] || '';
+    let rm = '다시 대결', dis = false;
     if (me.rematch) { rm = '상대 응답 대기 중…'; dis = true; }
     else if (!op || !op.connected) { rm = '상대가 나갔어요'; dis = true; }
     else if (op.rematch) rm = '상대가 재대결을 원해요!';
+    const detail = isRace()
+      ? '진행 ' + Math.round((me.cells / S.total) * 100) + '% : ' + (op ? Math.round((op.cells / S.total) * 100) : 0) + '% · 기록 ' + mmss(S.endedAt - S.startedAt)
+      : me.score + ' : ' + (op ? op.score : 0) + ' (점령 ' + me.cells + ' : ' + (op ? op.cells : 0) + ')';
     box('<div class="res ' + (draw ? '' : win ? 'w' : 'l') + '">' + (draw ? '무승부' : win ? '승리! 🎉' : '패배') + '</div>' +
       '<div style="color:var(--mute);font-size:14px;margin-bottom:6px">' + why + '</div>' +
-      '<div style="font-size:15px;margin-bottom:14px">' + me.score + ' : ' + (op ? op.score : 0) + ' (점령 ' + me.cells + ' : ' + (op ? op.cells : 0) + ')</div>' +
+      '<div style="font-size:15px;margin-bottom:14px">' + detail + '</div>' +
       '<button class="btn" id="rm"' + (dis ? ' disabled' : '') + '>' + rm + '</button>' +
-      '<button class="btn sec" id="bk" style="margin-top:8px">로비로</button>');
-    $('#rm').onclick = async () => { try { await api('rematch', sess); } catch (e) { toast(e.message); } };
+      '<button class="btn gray" id="bk" style="margin-top:8px">로비로</button>');
+    $('#rm').onclick = () => api('rematch', sess).catch((e) => toast(e.message));
     $('#bk').onclick = async () => { try { await api('leave', sess); } catch {} toLobby(); };
   }
 }
 function tick() {
   if (!S) return;
   const t = now();
-  if (S.status === 'playing') $('#timer').textContent = mmss(t - S.startedAt);
-  else if (S.status === 'finished') $('#timer').textContent = mmss(S.endedAt - S.startedAt);
-  else $('#timer').textContent = '0:00';
+  const tm = $('#timer b');
+  if (S.status === 'playing') tm.textContent = mmss(t - S.startedAt);
+  else if (S.status === 'finished') tm.textContent = mmss(S.endedAt - S.startedAt);
+  else tm.textContent = '0:00';
   if (S.status === 'countdown') { const cd = $('#cd'); const n = Math.max(1, Math.ceil((S.startsAt - t) / 1000)); if (cd) cd.textContent = n; if (n !== prevCd) { prevCd = n; SFX.tick(); } }
   const me = S.players.find((p) => p.idx === S.you), op = S.players.find((p) => p.idx !== S.you);
   const f = $('#frz');
@@ -428,14 +662,20 @@ function tick() {
 setInterval(tick, 200);
 
 /* ---------- 시작 ---------- */
-(function init() {
-  $('#nick').value = localStorage.getItem('sd_nick') || '';
+(async function init() {
   const q = new URLSearchParams(location.search).get('room');
-  if (q) { $('#code').value = q.toUpperCase().slice(0, 5); if ($('#nick').value) $('#nick').focus(); }
+  if (q) $('#code').value = q.toUpperCase().slice(0, 5);
   loadRank();
+  if (token) {
+    try { const r = await api('me'); setUser(r.nick); }
+    catch (e) { if (e.status === 401) showAuth(); }
+  }
+  if (user && sessionStorage.getItem('sd_solo')) {
+    try { const r = await api('solo/state'); openSolo(r.state); return; } catch { sessionStorage.removeItem('sd_solo'); }
+  }
   try {
     const s = JSON.parse(sessionStorage.getItem('sd_sess') || 'null');
-    if (s && s.code && s.pid && !q) enter(s.code, s.pid);
+    if (s && s.code && s.pid && !q && user) enter(s.code, s.pid);
   } catch {}
 })();
 </script>
