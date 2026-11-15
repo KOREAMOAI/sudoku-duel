@@ -1087,6 +1087,7 @@ const server = http.createServer(async (req, res) => {
       return res.end(fs.readFileSync(path.join(__dirname, 'index.html')));
     }
     if (req.method === 'GET' && url.pathname === '/favicon.ico') { res.writeHead(204); return res.end(); }
+    if (req.method === 'GET' && url.pathname === '/api/ping') return json(res, 200, { t: Date.now() });
     if (req.method === 'GET' && url.pathname === '/api/season') return json(res, 200, seasonView(url.searchParams.get('me')));
     if (req.method === 'GET' && url.pathname === '/api/ranking') {
       const mode = url.searchParams.get('mode') || 'race', diff = url.searchParams.get('diff') || 'normal', by = url.searchParams.get('by') || 'time', me = url.searchParams.get('me');

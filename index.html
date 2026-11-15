@@ -274,6 +274,9 @@ html:has(#room:not(.hide)),body:has(#room:not(.hide)){overflow:hidden;overscroll
   #room .tools{margin-top:8px}
   #room .legend{margin:2px 0 4px}
 }
+#ping{position:fixed;top:2px;left:10px;font-size:10px;font-weight:700;color:var(--mute);z-index:50;pointer-events:none;font-variant-numeric:tabular-nums;opacity:.85}
+#ping.good{color:#16a34a}#ping.mid{color:#d97706}#ping.bad{color:#dc2626}
+.c.pend{opacity:.55}
 </style>
 </head>
 <body>
@@ -551,6 +554,7 @@ html:has(#room:not(.hide)),body:has(#room:not(.hide)){overflow:hidden;overscroll
 </div>
 
 </div>
+<div id="ping"></div>
 <canvas id="fx"></canvas>
 <div class="toast" id="toast"></div>
 
@@ -558,6 +562,9 @@ html:has(#room:not(.hide)),body:has(#room:not(.hide)){overflow:hidden;overscroll
 const $ = (s) => document.querySelector(s);
 let token = localStorage.getItem('sd_token') || '', user = '';
 let sess = null, S = null, es = null, sel = -1, offset = 0, lastSeq = 0, busy = false, firstState = true;
+const pend = {}; // 서버 응답 전에 먼저 화면에 보여 주는 내 입력 {칸: {v, done}}
+let moveQ = Promise.resolve();
+const enqueue = (fn) => (moveQ = moveQ.then(fn, fn)); // 입력 순서는 지키되 화면은 기다리지 않아요
 let noteMode = false, notes = new Array(81).fill(0), undo = [];
 const cells = [];
 
@@ -1130,6 +1137,22 @@ $('#bdPost').onclick = () => guard(async () => {
   $('#bdText').value = ''; $('#bdCnt').textContent = '0/300'; renderBoardList(r); toast('의견을 올렸어요. 고마워요!');
 });
 
+/* ---------- 핑 표시 ---------- */
+(function () {
+  const el = document.getElementById('ping'), hist = [];
+  async function pingOnce() {
+    if (document.hidden) return;
+    const t0 = performance.now();
+    try {
+      await fetch('/api/ping?_=' + t0, { cache: 'no-store' });
+      hist.push(Math.round(performance.now() - t0)); if (hist.length > 3) hist.shift();
+      const ms = [...hist].sort((a, b) => a - b)[Math.floor(hist.length / 2)];
+      el.textContent = '📶 ' + ms + 'ms'; el.className = ms < 120 ? 'good' : ms < 300 ? 'mid' : 'bad';
+    } catch { el.textContent = '📶 연결 끊김'; el.className = 'bad'; }
+  }
+  setInterval(pingOnce, 6000); pingOnce();
+})();
+
 /* ---------- 탭 / 시트 / 대기 방 목록 ---------- */
 let curTab = 'play';
 function setTab(t) {
@@ -1264,7 +1287,7 @@ const peers = (i) => { const r = Math.floor(i / 9), c = i % 9, br = r - r % 3, b
 const editable = (i) => S && S.puzzle && !S.puzzle[i];
 
 async function place(v) {
-  if (!S || S.status !== 'playing' || busy) return;
+  if (!S || S.status !== 'playing' || (busy && !isRace())) return;
   if (sel < 0) return toast('칸을 먼저 선택해 주세요');
   if (S.puzzle[sel]) return toast('주어진 칸이에요');
   const me = S.players.find((p) => p.idx === S.you);
@@ -1280,19 +1303,33 @@ async function place(v) {
     }
   } else if (S.owner[sel]) return toast('이미 차지한 칸이에요');
 
-  busy = true; const i = sel;
+  const i = sel;
+  if (isRace()) { // 즉시 반응: 숫자를 먼저 보여 주고 판정은 뒤따라 와요
+    const pe = (pend[i] = { v, done: false }); render();
+    enqueue(async () => {
+      try {
+        const r = await call('move', { i, v });
+        if (r.correct) {
+          SFX.mine();
+          notes[i] = 0; peers(i).forEach((k) => { notes[k] &= ~(1 << v); });
+          undo = undo.filter((u) => u.i !== i);
+        } else if (!r.same) {
+          SFX.wrong();
+          cells[i].classList.add('shake'); setTimeout(() => cells[i].classList.remove('shake'), 350);
+          undo.push({ t: 'wrong', i }); notes[i] = 0; toast('틀렸어요! 실수 +1');
+        }
+      } catch (e) { if (pend[i] === pe) delete pend[i]; toast(e.message); render(); return; }
+      pe.done = true; render();
+      setTimeout(() => { if (pend[i] === pe) { delete pend[i]; render(); } }, 2500);
+    });
+    return;
+  }
+  busy = true;
   try {
     const r = await call('move', { i, v });
-    if (r.correct) {
-      if (isRace()) {
-        SFX.mine();
-        notes[i] = 0; peers(i).forEach((k) => { notes[k] &= ~(1 << v); });
-        undo = undo.filter((u) => u.i !== i);
-      }
-    } else if (!r.same) {
+    if (!r.correct && !r.same) {
       SFX.wrong();
       cells[i].classList.add('shake'); setTimeout(() => cells[i].classList.remove('shake'), 350);
-      if (isRace()) { undo.push({ t: 'wrong', i }); notes[i] = 0; toast('틀렸어요! 실수 +1'); }
     }
   } catch (e) { toast(e.message); }
   busy = false;
@@ -1412,10 +1449,15 @@ function render() {
   const counts = new Array(10).fill(0);
   for (let i = 0; i < 81; i++) {
     const el = cells[i];
-    const v = S.values ? S.values[i] : 0;
-    const bad = race && S.wrong && S.wrong[i];
+    let v = S.values ? S.values[i] : 0, isPend = false;
+    const pe = pend[i];
+    if (pe) {
+      if (v === pe.v && pe.done) delete pend[i];
+      else if (v !== pe.v) { v = pe.v; isPend = true; }
+    }
+    const bad = race && !isPend && S.wrong && S.wrong[i];
     if (v && !bad) counts[v]++;
-    const key = v + '|' + (race && !v ? notes[i] : 0);
+    const key = v + '|' + (race && !v ? notes[i] : 0) + (isPend ? 'p' : '');
     if (el._k !== key) {
       el._k = key;
       if (v) el.textContent = v; else if (race && notes[i]) el.innerHTML = noteHTML(notes[i]); else el.textContent = '';
@@ -1423,6 +1465,7 @@ function render() {
     let cls = 'c' + (i % 9 % 3 === 2 ? ' cr' : '') + (Math.floor(i / 9) % 3 === 2 ? ' rb' : '');
     if (S.puzzle && S.puzzle[i]) cls += ' given';
     else if (bad) cls += ' bad';
+    else if (isPend) cls += ' pend';
     else if (!race && S.owner && S.owner[i]) cls += S.owner[i] === S.you ? ' mine' : ' theirs';
     if (sel >= 0 && playing) {
       const r = Math.floor(i / 9), c = i % 9;
