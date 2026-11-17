@@ -391,6 +391,32 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
 .lsteps i.on{background:var(--blue)}
 .drow.me{background:var(--rel)}
 
+/* ===== 심플 정리 ===== */
+.brand{font-size:16px;font-weight:800;color:var(--blue)}
+.topbar{margin:6px 0 14px}
+.coinpill{padding:4px 12px;font-size:14px;display:flex;align-items:center;gap:6px}
+.coinpill .ci{width:16px;height:16px;fill:none;stroke:var(--blue);stroke-width:1.8;stroke-linecap:round}
+.dailypill{animation:none!important;font-size:12px;padding:5px 12px}
+.homec,.bcol{display:flex;flex-direction:column;gap:12px;min-height:58vh;justify-content:center}
+.bcol{min-height:0;padding:22px 0 18px}
+.newsolo{height:64px;flex-direction:row!important;justify-content:center;margin:0!important}
+.newsolo span{font-size:18px!important}
+#resumeBtn{height:48px;margin:0;font-size:15px}
+.drowl{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--edge);padding-top:14px;margin-top:6px;font-size:14px}
+.drowl .dl{display:flex;align-items:center;gap:8px;font-weight:700;min-width:0}
+.drowl .dl>svg{width:18px;height:18px;fill:none;stroke:var(--blue);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.drowl small{display:block;color:var(--mute);font-weight:400;font-size:12px}
+.drowl .dr{color:var(--mute);font-size:13px;white-space:nowrap}
+.dgo{border:0;background:var(--blue);color:#fff;border-radius:10px;padding:8px 18px;font-size:14px;font-weight:700}
+.bbig{display:flex;align-items:center;justify-content:space-between;width:100%;height:72px;padding:0 18px;border:1px solid var(--blue);border-radius:14px;background:var(--blue);color:#fff;text-align:left}
+.bbig b{display:block;font-size:16px}.bbig small{display:block;font-size:12px;opacity:.85;margin-top:2px}
+.bbig.sec{background:var(--paper);color:var(--ink);border-color:var(--edge)}.bbig.sec small{color:var(--mute);opacity:1}
+.bbig .ch{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.mlist{border-top:1px solid var(--edge);margin-bottom:12px}
+.mi{display:flex;align-items:center;gap:12px;width:100%;padding:15px 2px;border:0;border-bottom:1px solid var(--edge);background:none;color:var(--ink);font-size:15px;text-align:left}
+.mi svg{width:20px;height:20px;fill:none;stroke:var(--mute);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.mi span{flex:1}.mi em{font-style:normal;font-size:13px;color:var(--mute)}.mi .ch{width:16px;height:16px;stroke:var(--line)}
+
 </style>
 </head>
 <body>
@@ -411,65 +437,46 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
 
   <div id="playCard" class="hide">
     <div class="topbar">
-      <div class="coinpill">🪙 <b id="coins">0</b></div>
-      <div class="coinpill" id="streakPill" title="솔로 연속 클리어">🔥 <b id="streakSolo">0</b></div>
-      <span class="hide"><span id="whoIcon">👤</span><b id="who"></b></span>
+      <b class="brand">스도쿠 듀얼</b>
       <div style="flex:1"></div>
-      <button class="dailypill hide" id="dailyBtn">🎁 출석 <span id="dailyAmt"></span></button>
+      <button class="dailypill hide" id="dailyBtn">출석 <span id="dailyAmt"></span></button>
+      <div class="coinpill"><svg viewBox="0 0 24 24" class="ci"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/></svg><b id="coins">0</b></div>
+      <div class="hide" id="streakPill"><b id="streakSolo">0</b></div>
+      <span class="hide"><span id="whoIcon">👤</span><b id="who"></b></span>
     </div>
 
     <!-- 플레이 탭 -->
     <section class="tabp on" data-tab="play">
-      <div class="card hide" id="resumeCard">
-        <div class="ct">⏯️ 이어하기</div>
-        <div id="resumeInfo" style="font-size:14px;margin-bottom:10px"></div>
-        <button class="btn" id="resumeBtn">이어서 풀기</button>
-      </div>
-      <div class="card hide" id="dailyPz"></div>
-
-      <button class="menu" id="openLearn"><span>🎓 풀이 배우기</span><span class="cap" style="margin:0" id="learnCnt">기법 레슨 ›</span></button>
-      <button class="newsolo" id="newSolo"><span>▶ 솔로 새 게임</span><small>난이도를 골라 혼자 풀어요 · 클리어하면 코인!</small></button>
-
-      <div class="card" id="questCard">
-        <div class="ct">📋 오늘의 퀘스트 <span class="cnt" id="questCnt"></span></div>
-        <div id="questList"></div>
+      <div class="homec">
+        <button class="newsolo" id="newSolo"><span>새 게임</span></button>
+        <div class="hide" id="resumeCard"><button class="btn sec" id="resumeBtn"><span id="resumeInfo"></span></button></div>
+        <div class="hide" id="dailyPz"></div>
       </div>
     </section>
 
     <!-- 배틀 탭 -->
     <section class="tabp" data-tab="battle">
-      <div class="card" style="display:flex;align-items:center;gap:10px">
-        <div style="font-size:30px">⚔️</div>
-        <div style="flex:1"><div class="ct" style="margin:0">대결 연승 <b id="streakPvp" style="font-size:20px;color:var(--blue)">0</b></div><div class="cap" id="streakPvpBest" style="margin:2px 0 0"></div></div>
-      </div>
-      <div class="tiles">
-        <button class="tile" id="match"><span class="ti">⚡</span><b>랜덤 매칭</b><span class="ts">참가비 10🪙 · 승자 +10</span></button>
-        <button class="tile" id="openSheet"><span class="ti">👥</span><b>친구와 대결</b><span class="ts">방 만들기 · 판돈 설정</span></button>
-      </div>
-
-      <div class="card">
-        <div class="ct">🔑 코드로 입장</div>
+      <div class="hide"><b id="streakPvp">0</b><span id="streakPvpBest"></span></div>
+      <div class="bcol">
+        <button class="bbig" id="match"><span><b>랜덤 매칭</b><small>참가비 10코인 · 승자 +10</small></span><svg viewBox="0 0 24 24" class="ch"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="bbig sec" id="openSheet"><span><b>친구와 대결</b><small>방 만들기 · 판돈 설정</small></span><svg viewBox="0 0 24 24" class="ch"><path d="M9 6l6 6-6 6"/></svg></button>
         <div class="row">
           <input id="code" type="text" maxlength="5" placeholder="방 코드 5자리" autocomplete="off" style="text-transform:uppercase;letter-spacing:.2em;text-align:center;margin:0">
           <button class="btn sec" id="join" style="flex:0 0 96px">입장</button>
         </div>
       </div>
-
       <div class="card">
-        <div class="ct">🚪 대기 중인 방 <span class="cnt" id="roomCnt"></span></div>
+        <div class="ct">대기 중인 방 <span class="cnt" id="roomCnt"></span></div>
         <div id="roomList"><div class="empty">불러오는 중…</div></div>
       </div>
-
-      <div class="card">
-        <div class="ct">🟢 접속 중 <span class="cnt" id="onlineCnt"></span></div>
-        <div id="onlineList" class="chips"></div>
-      </div>
+      <div class="hide"><span id="onlineCnt"></span><div id="onlineList" class="chips"></div></div>
     </section>
 
     <!-- 상점 탭 -->
     <section class="tabp" data-tab="shop">
+      <button class="back" id="shopBack">‹ 내 정보</button>
       <div class="card" id="shopCard">
-        <div class="ct">🛍️ 상점 <span class="cap" style="display:inline;margin-left:6px" id="soloCap"></span></div>
+        <div class="ct">상점 <span class="cap" style="display:inline;margin-left:6px" id="soloCap"></span></div>
         <div class="seg" style="margin-top:0">
           <label><input type="radio" name="st" value="color" checked><span>이름 색</span></label>
           <label><input type="radio" name="st" value="title"><span>칭호</span></label>
@@ -480,9 +487,9 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
 
     <!-- 게시판 탭 -->
     <section class="tabp" data-tab="board">
-      <button class="back" id="boardBack">‹ 내 정보</button>
+      <button class="back" id="boardBack">‹ 설정</button>
       <div class="card">
-        <div class="ct">💬 피드백 게시판</div>
+        <div class="ct">피드백 게시판</div>
         <div class="cap" style="margin:0 0 10px">게임에 대한 의견, 불편한 점, 바라는 기능을 자유롭게 남겨 주세요. 마음에 드는 의견엔 👍를 눌러 주세요!</div>
         <textarea id="bdText" maxlength="300" rows="3" placeholder="이런 기능이 있으면 좋겠어요 / 이 부분이 불편해요 …"></textarea>
         <div class="row" style="align-items:center;margin-bottom:4px"><span class="cap" id="bdCnt" style="margin:0;flex:none">0/300</span><button class="btn" id="bdPost" style="flex:none;width:auto;padding:10px 22px">올리기</button></div>
@@ -496,9 +503,9 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
 
     <!-- 내 정보 탭 -->
     <section class="tabp" data-tab="learn">
-      <button class="back" id="learnBack">‹ 홈</button>
+      <button class="back" id="learnBack">‹ 내 정보</button>
       <div class="card">
-        <div class="ct" style="font-size:18px">🎓 풀이 배우기 <span class="cnt" id="learnProg"></span></div>
+        <div class="ct" style="font-size:18px">풀이 배우기 <span class="cnt" id="learnProg"></span></div>
         <div class="cap" style="margin:0">예제를 보고, 같이 해 보고, 혼자 찾아보는 3단계 레슨이에요. 연습 판은 실제 퍼즐에서 매번 새로 나와요. 레슨을 처음 끝내면 코인을 받아요.</div>
       </div>
       <div id="learnList"></div>
@@ -506,17 +513,45 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
 
     <section class="tabp" data-tab="me">
       <div class="card">
-        <div class="ct">🪪 내 프로필</div>
-        <div class="pf-hd"><div class="pf-av" id="pfAv">🙂</div><div style="min-width:0"><div class="pf-nm" id="pfNm"></div><div class="pf-msg" id="pfMsg"></div></div></div>
-        <div class="cap" style="margin:0">아이콘</div>
-        <div class="ibox" id="iconBox"></div>
-        <label class="f" for="msgIn">상태 메시지 <span id="msgCnt">0/30</span></label>
-        <input type="text" id="msgIn" maxlength="30" placeholder="한마디를 남겨 보세요 (예: 오늘도 1등 가자!)" autocomplete="off">
-        <button class="btn" id="pfSave">프로필 저장</button>
+        <div class="pf-hd"><div class="pf-av" id="pfAv">🙂</div><div style="min-width:0;flex:1"><div class="pf-nm" id="pfNm"></div><div class="pf-msg" id="pfMsg"></div></div><button class="btn sec" id="pfToggle" style="width:auto;flex:none;padding:7px 14px;font-size:13px;margin:0">편집</button></div>
+        <div id="pfEdit" class="hide">
+          <div class="cap" style="margin:10px 0 0">아이콘</div>
+          <div class="ibox" id="iconBox"></div>
+          <label class="f" for="msgIn">상태 메시지 <span id="msgCnt">0/30</span></label>
+          <input type="text" id="msgIn" maxlength="30" placeholder="한마디를 남겨 보세요 (예: 오늘도 1등 가자!)" autocomplete="off">
+          <button class="btn" id="pfSave">프로필 저장</button>
+        </div>
       </div>
-      <button class="menu" id="openBoard"><span>💬 피드백 게시판</span><span class="cap" style="margin:0">의견 남기기 ›</span></button>
+      <div class="mlist">
+        <button class="mi" id="openQuest"><svg viewBox="0 0 24 24" class=""><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2v0a2 2 0 01-2 2h-2a2 2 0 01-2-2zM9 14l2 2 4-4"/></svg><span>퀘스트</span><svg viewBox="0 0 24 24" class="ch"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="mi" id="openLearn"><svg viewBox="0 0 24 24" class=""><path d="M4 19V5a2 2 0 012-2h13v16H6a2 2 0 00-2 2 2 2 0 002 2h13"/></svg><span>풀이 배우기</span><em id="learnCnt"></em><svg viewBox="0 0 24 24" class="ch"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="mi" id="openRank"><svg viewBox="0 0 24 24" class=""><path d="M7 4h10v5a5 5 0 01-10 0zM7 6H4v1a3 3 0 003 3M17 6h3v1a3 3 0 01-3 3M12 14v4M8 21h8"/></svg><span>랭킹</span><svg viewBox="0 0 24 24" class="ch"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="mi" id="openShop"><svg viewBox="0 0 24 24" class=""><path d="M4 8h16l-1 12H5zM8 8V6a4 4 0 018 0v2"/></svg><span>상점</span><svg viewBox="0 0 24 24" class="ch"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="mi" id="openStats"><svg viewBox="0 0 24 24" class=""><path d="M5 20V12M12 20V5M19 20v-9"/></svg><span>통계</span><svg viewBox="0 0 24 24" class="ch"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="mi" id="openSettings"><svg viewBox="0 0 24 24" class=""><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 5v4M8 15v4"/></svg><span>설정</span><svg viewBox="0 0 24 24" class="ch"><path d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+    </section>
+
+    <section class="tabp" data-tab="quest">
+      <button class="back" id="questBack">‹ 내 정보</button>
+      <div class="card" id="questCard">
+        <div class="ct">오늘의 퀘스트 <span class="cnt" id="questCnt"></span></div>
+        <div id="questList"></div>
+      </div>
+    </section>
+
+    <section class="tabp" data-tab="stats">
+      <button class="back" id="statsBack">‹ 내 정보</button>
+      <div class="card">
+        <div class="ct">내 기록</div>
+        <div id="mystats"></div>
+      </div>
+    </section>
+
+    <section class="tabp" data-tab="settings">
+      <button class="back" id="setBack">‹ 내 정보</button>
       <div class="card" id="setCard">
-        <div class="ct">⚙️ 설정</div>
+        <div class="ct">설정</div>
         <div class="set"><span>다크 모드</span><button class="tgl" id="sDark" aria-label="다크 모드"></button></div>
         <div class="set"><span>보드 숫자 크기</span><div class="sseg" id="sNum"><button data-v="s">작게</button><button data-v="m">보통</button><button data-v="l">크게</button></div></div>
         <div class="set"><span>핑 표시</span><button class="tgl" id="sPing" aria-label="핑 표시"></button></div>
@@ -524,22 +559,16 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
         <div class="set"><span>앱으로 설치<small id="instHint">홈 화면에 아이콘을 추가해 앱처럼 써요</small></span><button class="btn sec" id="sInstall" style="width:auto;padding:7px 14px;font-size:13px">설치</button></div>
         <div class="set"><span>빠른 메모 기본값<small>솔로에서 새 판을 시작할 때 자동으로 켜요</small></span><button class="tgl" id="sAuto" aria-label="빠른 메모 기본값"></button></div>
       </div>
-      <div class="card">
-        <div class="ct">📊 내 기록</div>
-        <div id="mystats"></div>
-      </div>
-      <div class="card">
-        <div class="ct">🎁 출석</div>
-        <div class="cap" style="margin:0" id="dailyInfo"></div>
-      </div>
-      <button class="btn sec hide" id="adminOpen" style="margin-bottom:10px">🛠 관리자 페이지</button>
+      <div class="mlist" style="margin-bottom:12px"><button class="mi" id="openBoard"><svg viewBox="0 0 24 24" class=""><path d="M4 5h16v11H9l-5 4z"/></svg><span>피드백 보내기</span><svg viewBox="0 0 24 24" class="ch"><path d="M9 6l6 6-6 6"/></svg></button></div>
+      <div class="cap" id="dailyInfo" style="margin:0 0 14px"></div>
+      <button class="btn sec hide" id="adminOpen" style="margin-bottom:10px">관리자 페이지</button>
       <button class="btn gray" id="logout">로그아웃</button>
     </section>
 
     <!-- 관리자 탭 -->
     <section class="tabp" data-tab="admin">
       <div class="card" id="adminLock">
-        <div class="ct">🛠 관리자 확인</div>
+        <div class="ct">관리자 확인</div>
         <div class="cap">관리자 키를 입력해 주세요 (키는 이 화면을 닫으면 사라져요)</div>
         <input type="password" id="adminKey" placeholder="관리자 키" autocomplete="off">
         <button class="btn" id="adminGo">확인</button>
@@ -556,14 +585,15 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
           <div id="adminUsers"></div>
         </div>
       </div>
-      <button class="btn gray" id="adminBack">← 내 정보로</button>
+      <button class="btn gray" id="adminBack">← 설정으로</button>
     </section>
   </div>
 
   <!-- 랭킹 탭 (로그아웃 상태에서도 보여요) -->
   <section class="tabp" data-tab="rank" id="rankSec">
+    <button class="back" id="rankBack">‹ 내 정보</button>
     <div class="card">
-      <div class="ct">🏆 랭킹</div>
+      <div class="ct">랭킹</div>
       <div class="seg" style="margin-top:0">
         <label><input type="radio" name="rs" value="season" checked><span>🔥 시즌</span></label>
         <label><input type="radio" name="rs" value="all"><span>전체 기록</span></label>
@@ -609,13 +639,13 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
   <div id="dsheet" class="sheet hide">
     <div class="sheet-bg" id="dsheetBg"></div>
     <div class="sheet-body"><div class="grab"></div>
-      <div class="ct" style="font-size:17px">솔로 새 게임 · 난이도 선택</div>
+      <div class="ct" style="font-size:17px">새 게임</div>
       <div class="dlist" id="dlist">
-        <button data-d="beginner"><b>초보자</b><span>처음 시작하기 좋은 판 · 클리어 +5🪙</span></button>
-        <button data-d="easy"><b>초급</b><span>가볍게 풀어요 · 클리어 +10🪙</span></button>
-        <button data-d="normal"><b>중급</b><span>적당한 도전 · 클리어 +20🪙</span></button>
-        <button data-d="hard"><b>고급</b><span>생각이 필요해요 · 클리어 +30🪙</span></button>
-        <button data-d="expert"><b>전문가</b><span>최고 난이도 · 클리어 +50🪙</span></button>
+        <button data-d="beginner"><b>초보자</b><span>처음 시작하기 좋은 판</span></button>
+        <button data-d="easy"><b>초급</b><span>가볍게 풀어요</span></button>
+        <button data-d="normal"><b>중급</b><span>적당한 도전</span></button>
+        <button data-d="hard"><b>고급</b><span>생각이 필요해요</span></button>
+        <button data-d="expert"><b>전문가</b><span>최고 난이도</span></button>
       </div>
       <button class="btn gray" id="dclose" style="margin-top:12px">닫기</button></div>
   </div>
@@ -631,8 +661,6 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
   <nav class="nav hide" id="nav">
     <button data-tab="play" class="on"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>홈</button>
     <button data-tab="battle"><svg viewBox="0 0 24 24"><path d="M14 4l6-1-1 6-9 9-3-3zM6 15l-3 3 3 3 3-3M5 13l6 6"/></svg>대결</button>
-    <button data-tab="rank"><svg viewBox="0 0 24 24"><path d="M7 4h10v5a5 5 0 01-10 0zM7 6H4v1a3 3 0 003 3M17 6h3v1a3 3 0 01-3 3M12 14v4M8 21h8"/></svg>랭킹</button>
-    <button data-tab="shop"><svg viewBox="0 0 24 24"><path d="M4 8h16l-1 12H5zM8 8V6a4 4 0 018 0v2"/></svg>상점</button>
     <button data-tab="me"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.5 3.5-7 8-7s8 2.5 8 7"/></svg>내 정보</button>
   </nav>
 
@@ -805,8 +833,8 @@ function applyShop(s) {
   setName($('#who'), user, s.cosm.color, s.cosm.title);
   const d = s.daily;
   $('#dailyBtn').classList.toggle('hide', !d.canClaim);
-  $('#dailyAmt').textContent = '+' + d.reward + '🪙';
-  $('#dailyInfo').textContent = d.canClaim ? d.day + '일째 출석 보상 +' + d.reward + '🪙을 받을 수 있어요' : '오늘 출석 완료 · 내일 또 오면 보너스가 늘어나요 (최대 +70🪙)';
+  $('#dailyAmt').textContent = '+' + d.reward;
+  $('#dailyInfo').textContent = d.canClaim ? d.day + '일째 출석 보상 +' + d.reward + '코인을 받을 수 있어요' : '오늘 출석 완료 · 내일 또 오면 보너스가 늘어나요 (최대 +70코인)';
   $('#soloCap').textContent = '솔로 보상 오늘 ' + s.soloToday + '/' + s.soloCap + '🪙';
   $('#adminOpen').classList.toggle('hide', !s.admin);
   if (s.streak) { $('#streakSolo').textContent = s.streak.solo; $('#streakPvp').textContent = s.streak.pvp; $('#streakPvpBest').textContent = '최고 ' + s.streak.pvpBest + '연승 · 솔로 최고 ' + s.streak.soloBest + '연승'; }
@@ -1180,7 +1208,7 @@ async function showNotes(s) {
 let adminKey = '', adminData = null;
 const adminCall = (p, extra = {}) => api('admin/' + p, { key: adminKey, ...extra });
 $('#adminOpen').onclick = () => setTab('admin');
-$('#adminBack').onclick = () => setTab('me');
+$('#adminBack').onclick = () => setTab('settings');
 $('#adminGo').onclick = () => guard(async () => {
   adminKey = $('#adminKey').value; $('#adminKey').value = '';
   try { await adminCall('auth'); } catch (e) { adminKey = ''; throw e; }
@@ -1272,12 +1300,15 @@ let curTab = 'play';
 function setTab(t) {
   curTab = t;
   document.querySelectorAll('.tabp').forEach((e) => e.classList.toggle('on', e.dataset.tab === t));
-  document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.tab === (t === 'admin' || t === 'board' ? 'me' : t === 'learn' ? 'play' : t)));
+  document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.tab === (t === 'play' || t === 'battle' ? t : 'me')));
   window.scrollTo(0, 0);
-  if (t === 'rank') loadRank(); else if (t === 'admin') { if (adminKey) adminLoad().catch(() => {}); } else if (t === 'me') { loadMyStats(); loadShop(); renderSettings(); } else if (t === 'shop') loadShop(); else if (t === 'board') loadBoard(); else if (t === 'learn') renderLearnList(); else pollLobby();
+  if (t === 'rank') loadRank(); else if (t === 'admin') { if (adminKey) adminLoad().catch(() => {}); } else if (t === 'me') { loadMyStats(); loadShop(); } else if (t === 'stats') loadMyStats(); else if (t === 'settings') renderSettings(); else if (t === 'shop' || t === 'quest') loadShop(); else if (t === 'board') loadBoard(); else if (t === 'learn') renderLearnList(); else pollLobby();
 }
 document.querySelectorAll('#nav button').forEach((b) => b.addEventListener('click', () => setTab(b.dataset.tab)));
-$('#openBoard').onclick = () => setTab('board'); $('#boardBack').onclick = () => setTab('me');
+$('#openBoard').onclick = () => setTab('board'); $('#boardBack').onclick = () => setTab('settings');
+[['openQuest','quest'],['openRank','rank'],['openShop','shop'],['openStats','stats'],['openSettings','settings']].forEach(([a,t]) => { $('#' + a).onclick = () => setTab(t); });
+[['questBack'],['statsBack'],['setBack'],['rankBack'],['shopBack']].forEach(([a]) => { $('#' + a).onclick = () => setTab('me'); });
+$('#pfToggle').onclick = () => { const e = $('#pfEdit'); e.classList.toggle('hide'); $('#pfToggle').textContent = e.classList.contains('hide') ? '편집' : '닫기'; };
 function openSheet() { $('#sheet').classList.remove('hide'); }
 function closeSheet() { $('#sheet').classList.add('hide'); }
 $('#openSheet').onclick = openSheet; $('#sheetBg').onclick = closeSheet;
@@ -1321,7 +1352,7 @@ function setResume(info) {
   savedSolo = info || null;
   const card = $('#resumeCard'); card.classList.toggle('hide', !info);
   if (!info) return;
-  $('#resumeInfo').textContent = (info.daily ? '📅 오늘의 퍼즐 · ' : '') + DIFF_N[info.difficulty] + ' · ' + info.cells + '/' + info.total + '칸 · ⏱ ' + mmss(info.elapsed) + ' · 실수 ' + info.mistakes + '/3 · 시간은 멈춰 있어요';
+  $('#resumeInfo').textContent = '이어하기 · ' + (info.daily ? '오늘의 퍼즐' : DIFF_N[info.difficulty]) + ' · ' + info.cells + '/' + info.total + '칸';
 }
 $('#resumeBtn').onclick = () => guard(async () => { const r = await api('solo/resume'); openSolo(r.state); });
 async function startSolo(diff) {
@@ -1375,8 +1406,8 @@ function renderLearnList() {
     b.onclick = () => openLesson(l.id); box.appendChild(b);
   });
 }
-function updateLearnCnt() { const n = ((shop && shop.learned) || []).length; $('#learnCnt').textContent = n ? n + '/' + LESSONS.length + ' 완료 ›' : '기법 레슨 ›'; }
-$('#openLearn').onclick = () => setTab('learn'); $('#learnBack').onclick = () => setTab('play');
+function updateLearnCnt() { const n = ((shop && shop.learned) || []).length; $('#learnCnt').textContent = n ? n + '/' + LESSONS.length : ''; }
+$('#openLearn').onclick = () => setTab('learn'); $('#learnBack').onclick = () => setTab('me');
 const ROWN = (i) => Math.floor(i / 9) + 1 + '행 ' + (i % 9 + 1) + '열';
 const UNAMEC = (u) => (u < 9 ? u + 1 + '행' : u < 18 ? u - 8 + '열' : u - 17 + '번 박스');
 const josa = (w, a, b) => { const t = String(w), ch = t[t.length - 1]; if (/[0-9]/.test(ch)) return t + ('1367890'.includes(ch) ? a : b); const k = ch.charCodeAt(0) - 0xac00; return t + (k >= 0 && k < 11172 && k % 28 ? a : b); };
@@ -1631,22 +1662,15 @@ async function startDaily() {
 function renderDaily(d) {
   const el = $('#dailyPz'); el.classList.toggle('hide', !d);
   if (!d) return;
-  const md = d.day.slice(5).replace('-', '/'), stt = d.status;
-  let h = '<div class="ct">📅 오늘의 퍼즐 <span class="cnt">' + md + ' · ' + DIFF_N[d.diff] + ' · 참가 ' + d.count + '명</span></div>';
-  if (stt === 'none') h += '<div class="dsub">모두가 같은 퍼즐을 풀어요 · 시간이 짧을수록 높은 순위<br>실수 1회 +15초, 힌트 1회 +30초 · 클리어 보상 <b>+' + d.reward + '🪙</b>' + (d.streak ? ' · 🔥 ' + d.streak + '일 연속 중' : '') + '</div><button class="btn" id="dpzGo">도전하기</button>';
-  else if (stt === 'playing') h += '<div class="dsub">진행 중이에요. 위의 이어하기에서 계속해 주세요.</div>';
-  else if (stt === 'done') h += '<div class="dsub">✅ 클리어! 기록 <b>' + mmss(d.my ? d.my.ms : 0) + '</b>' + (d.myRank ? ' · <b>' + d.myRank + '위</b>' : '') + (d.streak ? ' · 🔥 ' + d.streak + '일 연속' : '') + '<br>내일 새 퍼즐이 열려요.</div>';
-  else if (stt === 'failed') h += '<div class="dsub">😢 실패했어요. 내일 새 퍼즐에 다시 도전해 보세요!</div>';
-  else h += '<div class="dsub">오늘의 도전을 마쳤어요. 내일 새 퍼즐에 도전해 주세요!</div>';
-  if (d.top.length) {
-    const rows = dpzOpen ? d.top : d.top.slice(0, 3);
-    h += '<div class="dtop">' + rows.map((x) => '<div class="drow' + (x.nick === user ? ' me' : '') + '"><span class="rk">' + (['🥇', '🥈', '🥉'][x.rank - 1] || x.rank) + '</span><span class="dn"></span><span class="dm">' + mmss(x.ms) + '</span></div>').join('') + '</div>';
-    if (d.top.length > 3) h += '<button class="dmore" id="dpzMore">' + (dpzOpen ? '접기 ▴' : '순위 더 보기 ▾') + '</button>';
-  }
-  el.innerHTML = h;
-  el.querySelectorAll('.dn').forEach((n, i) => { const x = (dpzOpen ? d.top : d.top.slice(0, 3))[i]; setName(n, x.nick, x.color, x.title); });
+  const stt = d.status;
+  let sub = DIFF_N[d.diff] + (d.streak ? ' · 연속 ' + d.streak + '일' : ''), right;
+  if (stt === 'none') right = '<button class="dgo" id="dpzGo">도전</button>';
+  else if (stt === 'playing') right = '진행 중';
+  else if (stt === 'done') right = mmss(d.my ? d.my.ms : 0) + (d.myRank ? ' · ' + d.myRank + '위' : '');
+  else if (stt === 'failed') right = '내일 다시';
+  else right = '내일 새 퍼즐';
+  el.innerHTML = '<div class="drowl"><span class="dl"><svg viewBox="0 0 24 24"><path d="M5 6h14v14H5zM5 10h14M9 3v4M15 3v4"/></svg><span>오늘의 퍼즐<small>' + sub + '</small></span></span><span class="dr">' + right + '</span></div>';
   const go = $('#dpzGo'); if (go) go.onclick = () => guard(startDaily);
-  const mo = $('#dpzMore'); if (mo) mo.onclick = () => { dpzOpen = !dpzOpen; renderDaily(d); };
 }
 $('#newSolo').onclick = () => $('#dsheet').classList.remove('hide');
 const closeD = () => $('#dsheet').classList.add('hide');
