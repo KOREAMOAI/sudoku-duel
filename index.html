@@ -379,7 +379,8 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
 .lwrap{position:relative;width:min(100%,calc(100dvh - 390px));min-width:260px;margin:0 auto}
 .lwrap .lboard{width:100%}
 #lsSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
-#lsSvg .so{fill:none;stroke:var(--ink);stroke-width:.09;rx:.12}
+#lsSvg .so{fill:rgba(217,119,6,.10);stroke:#d97706;stroke-width:.06;stroke-dasharray:.16 .1;rx:.18}
+:root[data-theme=dark] #lsSvg .so{fill:rgba(255,180,90,.10);stroke:#f0a14a}
 #lsSvg .sl{stroke:#2a5db0;stroke-width:.08;stroke-linecap:round;opacity:.85}#lsSvg .sl.dash{stroke-dasharray:.18 .14;stroke:#d97706}#lsSvg .sl.ext{opacity:.45;stroke-width:.14}
 #lsSvg .sc{fill:none;stroke:#2a5db0;stroke-width:.07}#lsSvg .sc2{fill:none;stroke:#d97706;stroke-width:.09}
 #lsSvg .sx{stroke:#c0392b;stroke-width:.09;stroke-linecap:round}
@@ -1452,7 +1453,7 @@ function lsFrames() {
       const box = 18 + B_(cells[0]), line = R_(cells[0]) === R_(cells[1]) ? R_(cells[0]) : 9 + C_(cells[0]);
       const first = st.tech === 'pointing' ? box : line, second = st.tech === 'pointing' ? line : box;
       F.push(base({ focus: [v], t: '숫자 ' + v + '의 후보만 진하게 보여요. 나머지 후보는 흐리게 했어요.' }));
-      F.push(base({ focus: [v], outline: [first], area: UC(first), circ: cells, t: UNAMEC(first) + '에서 ' + josa(v, '이', '가') + ' 들어갈 수 있는 칸은 동그라미 친 ' + cells.length + '칸뿐이에요.' }));
+      F.push(base({ focus: [v], outline: [first], area: UC(first), circ: cells, t: '주황 점선으로 표시한 ' + UNAMEC(first) + '에서 ' + josa(v, '이', '가') + ' 들어갈 수 있는 칸은 동그라미 친 ' + cells.length + '칸뿐이에요.' }));
       F.push(base({ focus: [v], outline: [first, second], area: UC(first), circ: cells, lines: [{ a: cells[0], b: cells[cells.length - 1], ext: second }],
         t: '이 칸들은 모두 ' + UNAMEC(second) + ' 안에 있어요. 그러니 ' + UNAMEC(second) + '의 ' + josa(v, '은', '는') + ' 반드시 이 칸들 중 하나예요.' }));
       F.push(fin({ focus: [v], outline: [first, second], area: UC(first), circ: cells, lines: [{ a: cells[0], b: cells[cells.length - 1], ext: second }], t: '그래서 ' + UNAMEC(second) + '의 나머지 칸(✕)에서는 ' + josa(v, '을', '를') + ' 지워요.' }));
@@ -1468,8 +1469,8 @@ function lsFrames() {
       const baseU = byRow ? rows.map((r) => r) : cols.map((c) => 9 + c), coverU = byRow ? cols.map((c) => 9 + c) : rows.map((r) => r);
       const links = []; baseU.forEach((u) => { const cs = cells.filter((k) => UC(u).includes(k)); for (let k = 1; k < cs.length; k++) links.push({ a: cs[k - 1], b: cs[k] }); });
       F.push(base({ focus: [v], t: '숫자 ' + v + '의 후보만 진하게 보여요.' }));
-      F.push(base({ focus: [v], outline: baseU, circ: cells, lines: links, t: baseU.map(UNAMEC).join('·') + '에서 ' + josa(v, '이', '가') + ' 들어갈 수 있는 칸은 동그라미 친 곳뿐이에요. 각 줄에 ' + v + '은 하나씩 꼭 들어가요.' }));
-      F.push(base({ focus: [v], outline: baseU.concat(coverU), circ: cells, lines: links, t: '이 칸들은 모두 ' + coverU.map(UNAMEC).join('·') + ' 안에 있어요. 그래서 이 ' + coverU.length + '줄의 ' + josa(v, '은', '는') + ' 모두 동그라미 칸에서 채워져요.' }));
+      F.push(base({ focus: [v], outline: baseU, circ: cells, lines: links, t: '주황 점선으로 표시한 ' + baseU.map(UNAMEC).join('·') + '에서 ' + josa(v, '이', '가') + ' 들어갈 수 있는 칸은 동그라미 친 곳뿐이에요. 각 줄에 ' + v + '은 하나씩 꼭 들어가요.' }));
+      F.push(base({ focus: [v], outline: baseU.concat(coverU), circ: cells, lines: links, t: '이 칸들은 모두 ' + coverU.map(UNAMEC).join('·') + '(새로 표시한 주황 점선) 안에 있어요. 그래서 이 ' + coverU.length + '줄의 ' + josa(v, '은', '는') + ' 모두 동그라미 칸에서 채워져요.' }));
       F.push(fin({ focus: [v], outline: coverU, circ: cells, lines: links, t: coverU.map(UNAMEC).join('·') + '의 나머지 칸(✕)에서 ' + josa(v, '을', '를') + ' 지워요.' }));
     } else if (['skyscraper', 'kite', 'turbot'].includes(st.tech)) {
       const [a1, a2, b1, b2] = cells;
