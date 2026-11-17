@@ -153,11 +153,13 @@ th{color:var(--mute);font-weight:500;font-size:12px}td.n{text-align:left}
 .drow .rk{width:26px;text-align:center}.drow .dn{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.drow .dm{font-variant-numeric:tabular-nums;font-weight:700}
 .drow.me{background:var(--rel);margin:0 -8px;padding:5px 8px;border-radius:4px}
 .dmore{width:100%;border:0;background:none;color:var(--mute);font-size:12.5px;padding:6px 0 0}
-.ngh{font-weight:700;margin:6px 2px 8px}
-.ngrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-.ngrid button{padding:14px 8px;border:1.5px solid var(--ink);border-radius:8px;background:var(--paper);color:var(--ink);font-size:16px;font-weight:700;box-shadow:2px 2px 0 var(--ink)}
-.ngrid button.pri{grid-column:span 2;background:var(--ink);color:var(--paper)}
-.ngrid button:active{transform:translate(2px,2px);box-shadow:none}
+.newsolo{width:100%;display:flex;flex-direction:column;align-items:center;gap:3px;padding:16px 10px;margin-bottom:14px;border:1.5px solid var(--bd);border-radius:6px;background:var(--ink);color:var(--paper);box-shadow:3px 3px 0 var(--sh)}
+.newsolo span{font-size:19px;font-weight:900}.newsolo small{font-size:12px;opacity:.8}
+.newsolo:active{transform:translate(3px,3px);box-shadow:none}
+.dlist{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.dlist button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:13px 16px;border:1.5px solid var(--bd);border-radius:6px;background:var(--paper);color:var(--ink);box-shadow:2px 2px 0 var(--sh);text-align:left}
+.dlist button b{font-size:17px}.dlist button span{font-size:12.5px;color:var(--mute)}
+.dlist button:active{transform:translate(2px,2px);box-shadow:none}
 .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
 .tile{display:flex;flex-direction:column;align-items:center;gap:3px;padding:16px 8px;border:1px solid var(--edge);border-radius:14px;background:var(--paper);color:var(--ink);box-shadow:0 1px 3px rgba(52,72,97,.06)}
 .tile .ti{font-size:26px}.tile b{font-size:15px}.tile .ts{font-size:11.5px;color:var(--mute)}
@@ -362,12 +364,7 @@ input[type=text],input[type=password],textarea{border:1.5px solid var(--bd);bord
       </div>
       <div class="card hide" id="dailyPz"></div>
 
-      <div class="ngh">새 게임 <span class="cap" style="display:inline;margin:0 0 0 6px">솔로 · 클리어하면 코인!</span></div>
-      <div class="ngrid" id="ngrid">
-        <button data-d="beginner">초보자</button><button data-d="easy">초급</button>
-        <button data-d="normal">중급</button><button data-d="hard">고급</button>
-        <button data-d="expert" class="pri">전문가 도전</button>
-      </div>
+      <button class="newsolo" id="newSolo"><span>▶ 솔로 새 게임</span><small>난이도를 골라 혼자 풀어요 · 클리어하면 코인!</small></button>
 
       <div class="card" id="questCard">
         <div class="ct">📋 오늘의 퀘스트 <span class="cnt" id="questCnt"></span></div>
@@ -520,6 +517,21 @@ input[type=text],input[type=password],textarea{border:1.5px solid var(--bd);bord
       <div id="mebar" class="mebar hide"></div>
     </div>
   </section>
+
+  <!-- 난이도 선택 시트 -->
+  <div id="dsheet" class="sheet hide">
+    <div class="sheet-bg" id="dsheetBg"></div>
+    <div class="sheet-body"><div class="grab"></div>
+      <div class="ct" style="font-size:17px">솔로 새 게임 · 난이도 선택</div>
+      <div class="dlist" id="dlist">
+        <button data-d="beginner"><b>초보자</b><span>처음 시작하기 좋은 판 · 클리어 +5🪙</span></button>
+        <button data-d="easy"><b>초급</b><span>가볍게 풀어요 · 클리어 +10🪙</span></button>
+        <button data-d="normal"><b>중급</b><span>적당한 도전 · 클리어 +20🪙</span></button>
+        <button data-d="hard"><b>고급</b><span>생각이 필요해요 · 클리어 +30🪙</span></button>
+        <button data-d="expert"><b>전문가</b><span>최고 난이도 · 클리어 +50🪙</span></button>
+      </div>
+      <button class="btn gray" id="dclose" style="margin-top:12px">닫기</button></div>
+  </div>
 
   <!-- 프로필 보기 시트 -->
   <div id="psheet" class="sheet hide">
@@ -1235,7 +1247,10 @@ function renderDaily(d) {
   const go = $('#dpzGo'); if (go) go.onclick = () => guard(startDaily);
   const mo = $('#dpzMore'); if (mo) mo.onclick = () => { dpzOpen = !dpzOpen; renderDaily(d); };
 }
-document.querySelectorAll('#ngrid button').forEach((b) => { b.onclick = () => guard(() => startSolo(b.dataset.d)); });
+$('#newSolo').onclick = () => $('#dsheet').classList.remove('hide');
+const closeD = () => $('#dsheet').classList.add('hide');
+$('#dsheetBg').onclick = closeD; $('#dclose').onclick = closeD;
+document.querySelectorAll('#dlist button').forEach((b) => { b.onclick = () => { closeD(); guard(() => startSolo(b.dataset.d)); }; });
 async function call(name, extra) {
   if (S && S.mode === 'solo') {
     const r = await api('solo/' + name, extra);
