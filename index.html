@@ -376,7 +376,7 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
 .nt span.x{color:var(--bad);text-decoration:line-through;font-weight:900}
 .nt span.k{color:var(--user);font-weight:900}
 .c.tgt{background:var(--sel)!important}
-.lwrap{position:relative;width:min(100%,calc(100dvh - 330px));min-width:260px;margin:0 auto}
+.lwrap{position:relative;width:min(100%,calc(100dvh - 390px));min-width:260px;margin:0 auto}
 .lwrap .lboard{width:100%}
 #lsSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
 #lsSvg .so{fill:none;stroke:var(--ink);stroke-width:.09;rx:.12}
@@ -388,6 +388,8 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
 .c.fdim{opacity:.35}
 .c.pop2{animation:pop .45s}
 .lstrow{display:flex;align-items:center;gap:10px;margin-top:10px}.lstrow .lsteps{flex:1;margin:0}
+.lpad{margin-top:10px}.lpad button{color:var(--ink)}
+.nt span.hl{background:var(--same);color:var(--ink);font-weight:800;border-radius:3px}
 .lplay{flex:none;border:1.5px solid var(--bd);background:var(--paper);color:var(--ink);border-radius:6px;padding:4px 10px;font-size:12.5px;font-weight:700}
 .lsteps{display:flex;gap:5px;margin-top:10px}.lsteps i{flex:1;height:5px;border-radius:3px;background:var(--edge)}.lsteps i.on{background:var(--ink)}
 .lexp{border:1.5px solid var(--bd);border-radius:6px;background:var(--paper);padding:10px 12px;margin-top:10px;font-size:14px;line-height:1.6;box-shadow:2px 2px 0 var(--sh);min-height:70px}
@@ -610,6 +612,7 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
       <div class="lwrap" id="lsWrap"><div class="board lboard" id="lsBoard"></div><svg id="lsSvg" viewBox="0 0 9 9" preserveAspectRatio="none"></svg></div>
       <div class="lstrow"><div class="lsteps" id="lsSteps"></div><button class="lplay" id="lsPlay">▶ 자동 재생</button></div>
       <div class="lexp" id="lsExp"></div>
+      <div class="pad lpad hide" id="lsPad"></div>
       <div class="row" style="margin-top:10px"><button class="btn gray" id="lsPrev" style="flex:1">‹ 이전</button><button class="btn" id="lsNext" style="flex:2">다음 ›</button></div>
     </div>
   </div>
@@ -1390,7 +1393,7 @@ const ROWN = (i) => Math.floor(i / 9) + 1 + '행 ' + (i % 9 + 1) + '열';
 const UNAMEC = (u) => (u < 9 ? u + 1 + '행' : u < 18 ? u - 8 + '열' : u - 17 + '번 박스');
 const josa = (w, a, b) => { const t = String(w), ch = t[t.length - 1]; if (/[0-9]/.test(ch)) return t + ('1367890'.includes(ch) ? a : b); const k = ch.charCodeAt(0) - 0xac00; return t + (k >= 0 && k < 11172 && k % 28 ? a : b); };
 async function lsLoad() {
-  lsAuto(false); LS.ex = null; LS.frames = null; LS.solved = false; LS.hintOn = false; LS.wrong = false; lsRender(); $('#lsExp').textContent = '연습 판을 만드는 중…';
+  lsAuto(false); LS.ex = null; LS.frames = null; LS.solved = false; LS.hintOn = false; LS.wrong = ''; LS.sel = -1; LS.hl = 0; LS.removed = new Set(); lsRender(); $('#lsExp').textContent = '연습 판을 만드는 중…';
   try { LS.ex = await api('learn/ex', { lesson: LS.lesson.id }); } catch (e) { $('#lsExp').textContent = e.message; return; }
   if (!LS) return;
   lsRender(); if (LS.stage === 0) lsAuto(true);
@@ -1524,6 +1527,7 @@ function lsRender() {
   $('#lsTabs').classList.toggle('hide', rules); $('#lsWrap').classList.toggle('hide', rules);
   const steps = $('#lsSteps'); steps.innerHTML = '';
   $('#lsPlay').classList.toggle('hide', rules || LS.stage !== 0 || !LS.ex);
+  $('#lsPad').classList.toggle('hide', rules || LS.stage === 0 || !LS.ex);
   if (rules) {
     $('#lsPos').textContent = (LS.sub + 1) + ' / ' + RULES.length;
     RULES.forEach((_, k) => { const i = document.createElement('i'); if (k <= LS.sub) i.className = 'on'; steps.appendChild(i); });
@@ -1538,6 +1542,8 @@ function lsRender() {
   if (see) F.forEach((_, k) => { const i = document.createElement('i'); if (k <= LS.sub) i.className = 'on'; steps.appendChild(i); });
   const focus = fr.focus ? new Set(fr.focus) : null, area = new Set(fr.area), strike = new Map();
   if (fr.strike) st.elims.forEach(([i, d]) => { if (!strike.has(i)) strike.set(i, new Set()); strike.get(i).add(d); });
+  if (!see && LS.removed) LS.removed.forEach((k) => { const [i, d] = k.split(':').map(Number); if (!strike.has(i)) strike.set(i, new Set()); strike.get(i).add(d); });
+  const sl = see ? -1 : LS.sel, hl = see ? 0 : LS.hl, sr = Math.floor(sl / 9), sc = sl % 9;
   for (let i = 0; i < 81; i++) {
     const el = LC[i]; let cls = 'c' + (i % 9 % 3 === 2 ? ' cr' : '') + (Math.floor(i / 9) % 3 === 2 ? ' rb' : '');
     const v = ex.values[i];
@@ -1545,11 +1551,13 @@ function lsRender() {
     else if (fr.place && fr.place.i === i) { el.textContent = fr.place.v; cls += ' tgt pop2'; }
     else {
       let h = '<div class="nt">'; const m = ex.cands[i], sd = strike.get(i);
-      for (let d = 1; d <= 9; d++) { const has = m & (1 << d); h += '<span' + (has && sd && sd.has(d) ? ' class="x"' : has && focus ? (focus.has(d) ? ' class="k"' : ' class="dm"') : '') + '>' + (has ? d : '') + '</span>'; }
+      for (let d = 1; d <= 9; d++) { const has = m & (1 << d); h += '<span' + (has && sd && sd.has(d) ? ' class="x"' : has && hl === d ? ' class="hl"' : has && focus ? (focus.has(d) ? ' class="k"' : ' class="dm"') : '') + '>' + (has ? d : '') + '</span>'; }
       el.innerHTML = h + '</div>';
     }
-    if (area.has(i)) cls += ' harea';
-    if (!see && !v) cls += ' hit';
+    if (sl >= 0) { const rr = Math.floor(i / 9), cc = i % 9; if (i === sl) cls += ' sel'; else if (hl && v === hl) cls += ' same'; else if (rr === sr || cc === sc || (Math.floor(rr / 3) === Math.floor(sr / 3) && Math.floor(cc / 3) === Math.floor(sc / 3))) cls += ' rel'; }
+    else if (hl && v === hl) cls += ' same';
+    if (area.has(i) && i !== sl) cls += ' harea';
+    if (!see) cls += ' hit';
     el.className = cls;
   }
   lsDrawSvg(fr);
@@ -1559,22 +1567,40 @@ function lsRender() {
     $('#lsPrev').disabled = LS.sub === 0; $('#lsPrev').textContent = '‹ 이전'; $('#lsNext').disabled = false; $('#lsNext').textContent = LS.sub === F.length - 1 ? '같이 해 보기 ›' : '다음 ›';
     return;
   }
-  const ask = l.ask + (st.v && !['hsingle', 'nsingle'].includes(st.tech) ? ' (숫자 ' + st.v + ')' : '');
+  const single = isSingleLesson();
+  const ask = single ? '숫자를 확실히 넣을 수 있는 칸을 골라서, 아래에서 숫자를 눌러 보세요' : '지울 수 있는 후보가 있는 칸을 골라서, 지울 숫자를 눌러 보세요' + (st.v ? ' (숫자 ' + st.v + ')' : '');
   if (LS.solved) {
     exp.innerHTML = '<span class="good">✓ 정답!</span> '; exp.appendChild(document.createTextNode(F[F.length - 1].t));
     $('#lsNext').textContent = LS.stage === 1 ? '혼자 해 보기 ›' : '레슨 완료 ✓';
   } else {
     exp.textContent = (LS.stage === 1 ? '동그라미와 선을 참고해서 ' : '') + ask + '.';
-    if (LS.wrong) { const s = document.createElement('div'); s.className = 'no'; s.textContent = '거기는 아니에요. 다시 찾아보세요!'; exp.appendChild(s); }
+    if (!single && LS.removed.size) { const s = document.createElement('div'); s.className = 'good'; s.textContent = '지울 후보 ' + st.elims.length + '개 중 ' + LS.removed.size + '개를 지웠어요. 나머지도 찾아보세요!'; exp.appendChild(s); }
+    if (LS.wrong) { const s = document.createElement('div'); s.className = 'no'; s.textContent = LS.wrong; exp.appendChild(s); }
     $('#lsNext').textContent = LS.stage === 2 && !LS.hintOn ? '힌트 보기' : '정답 보기';
   }
   $('#lsPrev').disabled = false; $('#lsPrev').textContent = '‹ 이전 단계'; $('#lsNext').disabled = false;
 }
-function lsTap(i) {
-  if (!LS || !LS.ex || LS.stage === 0 || LS.solved) return;
-  const st = LS.ex.step, ok = ['hsingle', 'nsingle'].includes(st.tech) ? i === st.i || lsAlsoSingle(i) : st.elims.some((e) => e[0] === i);
-  if (ok) { LS.solved = true; LS.wrong = false; SFX.mine(); if (['hsingle', 'nsingle'].includes(st.tech) && i !== st.i) { st.i = i; st.v = lsAlsoSingle(i); } }
-  else { LS.wrong = true; SFX.wrong(); LC[i].classList.add('shake'); setTimeout(() => LC[i].classList.remove('shake'), 350); }
+const isSingleLesson = () => LS && LS.ex && ['hsingle', 'nsingle'].includes(LS.ex.step.tech);
+(function () { const p = $('#lsPad'); for (let d = 1; d <= 9; d++) { const b = document.createElement('button'); b.textContent = d; b.dataset.v = d; b.onclick = () => lsPad(d); p.appendChild(b); } })();
+function lsTap(i) { // 칸 고르기 (게임과 같아요: 숫자 칸을 누르면 같은 숫자 강조)
+  if (!LS || !LS.ex || LS.stage === 0) return;
+  LS.sel = i; LS.hl = LS.ex.values[i] || 0; LS.wrong = ''; lsRender();
+}
+function lsPad(d) {
+  if (!LS || !LS.ex || LS.stage === 0) return;
+  const ex = LS.ex, st = ex.step, i = LS.sel;
+  if (LS.solved || i < 0 || ex.values[i]) { LS.hl = d; LS.wrong = i < 0 && !LS.solved ? '먼저 칸을 골라 주세요. (지금은 ' + josa(d, '을', '를') + ' 강조했어요)' : ''; lsRender(); return; }
+  const bad = (msg) => { LS.wrong = msg; SFX.wrong(); LC[i].classList.add('shake'); setTimeout(() => LC[i].classList.remove('shake'), 350); lsRender(); };
+  if (isSingleLesson()) {
+    if ((i === st.i && d === st.v) || lsAlsoSingle(i) === d) { st.i = i; st.v = d; LS.solved = true; LS.wrong = ''; LS.hl = d; SFX.mine(); lsRender(); return; }
+    return bad(ex.cands[i] & (1 << d) ? ROWN(i) + '에 ' + josa(d, '이', '가') + ' 들어간다고 아직 확신할 수 없어요.' : ROWN(i) + '에는 ' + josa(d, '이', '가') + ' 들어갈 수 없어요.');
+  }
+  if (!(ex.cands[i] & (1 << d))) return bad(ROWN(i) + '에는 ' + d + ' 후보가 없어요.');
+  const key = i + ':' + d;
+  if (LS.removed.has(key)) return;
+  if (!st.elims.some(([a, b]) => a === i && b === d)) return bad('이 기법으로는 ' + ROWN(i) + '의 ' + josa(d, '을', '를') + ' 지울 수 없어요.');
+  LS.removed.add(key); LS.wrong = ''; SFX.mine();
+  if (LS.removed.size >= st.elims.length) LS.solved = true;
   lsRender();
 }
 function lsAlsoSingle(i) { // 같은 종류의 다른 정답 칸도 인정
@@ -1596,7 +1622,7 @@ $('#lsNext').onclick = () => guard(async () => {
   const l = LS.lesson;
   if (l.id === 'rules') { if (LS.sub < RULES.length - 1) { LS.sub++; lsRender(); return; } return finishLesson(); }
   if (LS.stage === 0) { lsAuto(false); if (LS.sub < lsFrames().length - 1) { LS.sub++; lsRender(); } else { LS.stage = 1; LS.sub = 0; lsLoad(); } return; }
-  if (!LS.solved) { if (LS.stage === 2 && !LS.hintOn) { LS.hintOn = true; lsRender(); return; } LS.solved = true; LS.wrong = false; lsRender(); return; }
+  if (!LS.solved) { if (LS.stage === 2 && !LS.hintOn) { LS.hintOn = true; lsRender(); return; } LS.solved = true; LS.wrong = ''; lsRender(); return; }
   if (LS.stage === 1) { LS.stage = 2; LS.sub = 0; lsLoad(); return; }
   finishLesson();
 });
