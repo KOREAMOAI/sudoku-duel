@@ -338,6 +338,16 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
 .banner{background:var(--same);color:var(--ink);border:1.5px solid var(--bd);border-radius:6px}
 .pc .fz{color:var(--user)}
 .frz{background:rgba(159,208,255,.45);color:var(--ink)}
+
+/* 설명형 힌트 */
+.hintbox{position:relative;margin:8px 0 0;padding:10px 12px;border:1.5px solid var(--bd);border-radius:6px;background:var(--paper);box-shadow:2px 2px 0 var(--sh);font-size:13.5px;line-height:1.55}
+.hb-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.hb-h b{font-size:14.5px}
+.hb-h button{border:1.5px solid var(--bd);background:var(--ink);color:var(--paper);border-radius:5px;padding:4px 12px;font-size:13px;font-weight:700}
+.c.harea{background:var(--rel)}
+.c.hpat{background:#cfe0f5}:root[data-theme=dark] .c.hpat{background:#2f4a63}
+.c.helim{background:#f5d5cf}:root[data-theme=dark] .c.helim{background:#5a3a36}
+#room:has(#hintBox:not(.hide)) .pad{display:none}
 </style>
 </head>
 <body>
@@ -618,6 +628,7 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
     <button id="bAuto"><span class="ic"><svg viewBox="0 0 24 24"><path d="M13 2L5 13h6l-1 9 8-11h-6z"/></svg></span>빠른 메모<span class="badge off" id="autoBadge">OFF</span></button>
     <button id="bHint"><span class="ic"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 00-3.5 11c.6.5 1 1.2 1 2h5c0-.8.4-1.5 1-2A6 6 0 0012 3z"/></svg></span>힌트<span class="badge" id="hintBadge">3</span></button>
   </div>
+  <div class="hintbox hide" id="hintBox"><div class="hb-h"><b id="hintName"></b><button id="hintOk">확인</button></div><div id="hintText"></div></div>
   <div class="pad" id="pad"></div>
   <div class="tools">
     <button class="btn gray hide" id="item">❄️ 상대 3초 동결 (1회)</button>
@@ -1215,7 +1226,7 @@ function openSolo(st) {
   sessionStorage.setItem('sd_solo', '1'); sessionStorage.removeItem('sd_sess');
   $('#lobby').classList.add('hide'); $('#room').classList.remove('hide'); $('#room').classList.add('solo');
   S = st; offset = S.now - Date.now(); sel = -1; firstState = false; prevStatus = null; prevCd = 0;
-  notes = new Array(81).fill(0); undo = []; noteMode = false; autoOn = false; autoWant = pref.get('auto', '0') === '1';
+  notes = new Array(81).fill(0); undo = []; noteMode = false; autoOn = false; autoWant = pref.get('auto', '0') === '1'; hintView = null; $('#hintBox').classList.add('hide');
   render();
 }
 let savedSolo = null;
@@ -1334,6 +1345,7 @@ const peers = (i) => { const r = Math.floor(i / 9), c = i % 9, br = r - r % 3, b
 const editable = (i) => S && S.puzzle && !S.puzzle[i];
 
 async function place(v) {
+  closeHint();
   if (!S || S.status !== 'playing' || (busy && !isRace())) return;
   if (sel < 0) return toast('칸을 먼저 선택해 주세요');
   if (S.puzzle[sel]) return toast('주어진 칸이에요');
@@ -1403,8 +1415,18 @@ async function useHint() {
     notes[r.i] = 0; peers(r.i).forEach((k) => { notes[k] &= ~(1 << r.v); });
     undo = undo.filter((u) => u.i !== r.i); sel = r.i; SFX.mine();
     cells[r.i].classList.add('pop'); setTimeout(() => cells[r.i].classList.remove('pop'), 350);
+    if (r.explain) showHint(r.explain);
   } catch (e) { toast(e.message); }
 }
+/* 설명형 힌트 (솔로) */
+let hintView = null;
+function showHint(ex) {
+  hintView = { area: new Set(ex.area || []), cells: new Set(ex.cells || []), elim: new Set(ex.elim || []) };
+  $('#hintName').textContent = '💡 ' + ex.name; $('#hintText').textContent = ex.text;
+  $('#hintBox').classList.remove('hide'); render();
+}
+function closeHint() { if (!hintView) return; hintView = null; $('#hintBox').classList.add('hide'); render(); }
+$('#hintOk').onclick = closeHint;
 function candMask(i) {
   let m = 0b1111111110;
   peers(i).forEach((k) => { const x = S.values[k]; if (x && !(S.wrong && S.wrong[k])) m &= ~(1 << x); });
@@ -1542,6 +1564,7 @@ function render() {
       else if (related && !bad && !(!race && S.owner && S.owner[i])) cls += ' rel';
     }
     if (op && op.cursor === i && S.status === 'playing') cls += ' opcur';
+    if (hintView && i !== sel) { if (hintView.elim.has(i)) cls += ' helim'; else if (hintView.cells.has(i)) cls += ' hpat'; else if (hintView.area.has(i)) cls += ' harea'; }
     ['pop', 'shake'].forEach((k) => { if (el.classList.contains(k)) cls += ' ' + k; });
     el.className = cls;
   }

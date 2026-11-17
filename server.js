@@ -2,6 +2,7 @@
 // 스도쿠 듀얼 서버 — 외부 패키지 없이 Node.js만으로 동작합니다.
 // 실행: node server.js  (기본 포트 3000, PORT 환경변수로 변경)
 const http = require('http');
+const logic = require('./logic');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -671,7 +672,7 @@ function countSolutions(g, limit) {
   }
   return n;
 }
-function generate(difficulty) {
+function generateOld(difficulty) {
   const solution = new Array(81).fill(0);
   fillGrid(solution);
   const puzzle = solution.slice();
@@ -685,6 +686,11 @@ function generate(difficulty) {
     else givens--;
   }
   return { solution, puzzle };
+}
+// 난이도는 '풀 때 꼭 필요한 기법'으로 정해요 (logic.js). 드물게 실패하면 예전 방식으로 대체
+function generate(difficulty) {
+  const r = logic.genLevel(GIVENS[difficulty] ? difficulty : 'normal');
+  return r ? { solution: r.solution, puzzle: r.puzzle } : generateOld(difficulty);
 }
 
 /* ---------- 방 ---------- */
@@ -1051,14 +1057,23 @@ function soloHint(g, i) {
   soloActive(g);
   if (g.hints >= 3) throw new Error('힌트를 모두 사용했어요');
   const open = (k) => !g.puzzle[k] && (!g.grid[k] || g.wrong[k]);
-  if (!(Number.isInteger(i) && i >= 0 && i < 81 && open(i))) {
-    const list = [...Array(81).keys()].filter(open);
-    if (!list.length) throw new Error('힌트를 줄 칸이 없어요');
-    i = list[crypto.randomInt(list.length)];
+  const known = g.grid.map((v, k) => (g.wrong[k] ? 0 : v));
+  let ex = null;
+  try { ex = logic.explainNext(known, g.solution, Number.isInteger(i) && i >= 0 && i < 81 && open(i) ? i : -1); } catch { ex = null; }
+  if (ex && open(ex.i)) i = ex.i;
+  else {
+    ex = null;
+    if (!(Number.isInteger(i) && i >= 0 && i < 81 && open(i))) {
+      const list = [...Array(81).keys()].filter(open);
+      if (!list.length) throw new Error('힌트를 줄 칸이 없어요');
+      i = list[crypto.randomInt(list.length)];
+    }
   }
   g.grid[i] = g.solution[i]; g.wrong[i] = false; g.cells++; g.hints++;
   if (g.cells >= g.total) soloFinish(g, true);
-  return { i, v: g.solution[i], state: soloView(g) };
+  const explain = ex ? { name: ex.name, tier: ex.tier, text: ex.text, area: ex.area, cells: ex.cells, elim: ex.elimCells }
+    : { name: '정답 공개', tier: 0, text: (Math.floor(i / 9) + 1) + '행 ' + (i % 9 + 1) + '열의 정답은 ' + g.solution[i] + '예요. (지금 판은 기본 기법만으로는 다음 칸을 찾기 어려워요)', area: [], cells: [], elim: [] };
+  return { i, v: g.solution[i], explain, state: soloView(g) };
 }
 
 /* ---------- 게임 규칙 ---------- */
