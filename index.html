@@ -370,12 +370,25 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
 .ltabs span{flex:1;text-align:center;padding:7px 2px;border-right:1.5px solid var(--bd);color:var(--mute)}.ltabs span:last-child{border-right:0}
 .ltabs span.on{background:var(--ink);color:var(--paper);font-weight:700}.ltabs span.ok{color:var(--ink)}
 .lbody{margin-top:10px}
-.lboard{width:min(100%,calc(100dvh - 330px));min-width:260px;margin:0 auto}
+.lboard{margin:0 auto}
 .lboard .c{font-size:calc(clamp(16px,5.4vw,28px)*var(--ns,1))}
 .lboard .c.hit{cursor:pointer}
 .nt span.x{color:var(--bad);text-decoration:line-through;font-weight:900}
 .nt span.k{color:var(--user);font-weight:900}
 .c.tgt{background:var(--sel)!important}
+.lwrap{position:relative;width:min(100%,calc(100dvh - 330px));min-width:260px;margin:0 auto}
+.lwrap .lboard{width:100%}
+#lsSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+#lsSvg .so{fill:none;stroke:var(--ink);stroke-width:.09;rx:.12}
+#lsSvg .sl{stroke:#2a5db0;stroke-width:.08;stroke-linecap:round;opacity:.85}#lsSvg .sl.dash{stroke-dasharray:.18 .14;stroke:#d97706}#lsSvg .sl.ext{opacity:.45;stroke-width:.14}
+#lsSvg .sc{fill:none;stroke:#2a5db0;stroke-width:.07}#lsSvg .sc2{fill:none;stroke:#d97706;stroke-width:.09}
+#lsSvg .sx{stroke:#c0392b;stroke-width:.09;stroke-linecap:round}
+:root[data-theme=dark] #lsSvg .sl,:root[data-theme=dark] #lsSvg .sc{stroke:#9fd0ff}:root[data-theme=dark] #lsSvg .sx{stroke:#ff8a7a}
+.nt span.dm{opacity:.22}
+.c.fdim{opacity:.35}
+.c.pop2{animation:pop .45s}
+.lstrow{display:flex;align-items:center;gap:10px;margin-top:10px}.lstrow .lsteps{flex:1;margin:0}
+.lplay{flex:none;border:1.5px solid var(--bd);background:var(--paper);color:var(--ink);border-radius:6px;padding:4px 10px;font-size:12.5px;font-weight:700}
 .lsteps{display:flex;gap:5px;margin-top:10px}.lsteps i{flex:1;height:5px;border-radius:3px;background:var(--edge)}.lsteps i.on{background:var(--ink)}
 .lexp{border:1.5px solid var(--bd);border-radius:6px;background:var(--paper);padding:10px 12px;margin-top:10px;font-size:14px;line-height:1.6;box-shadow:2px 2px 0 var(--sh);min-height:70px}
 .lexp .good{color:#2f7d4f;font-weight:700}.lexp .no{color:var(--bad);font-weight:700}
@@ -594,8 +607,8 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
     <div class="lhd"><button class="back" id="lsBack" style="padding:0">‹ 목록</button><b id="lsTitle"></b><span class="cap" style="margin:0" id="lsPos"></span></div>
     <div class="ltabs" id="lsTabs"><span data-s="0">① 예제 보기</span><span data-s="1">② 같이 하기</span><span data-s="2">③ 혼자 하기</span></div>
     <div class="lbody">
-      <div class="board lboard" id="lsBoard"></div>
-      <div class="lsteps" id="lsSteps"></div>
+      <div class="lwrap" id="lsWrap"><div class="board lboard" id="lsBoard"></div><svg id="lsSvg" viewBox="0 0 9 9" preserveAspectRatio="none"></svg></div>
+      <div class="lstrow"><div class="lsteps" id="lsSteps"></div><button class="lplay" id="lsPlay">▶ 자동 재생</button></div>
       <div class="lexp" id="lsExp"></div>
       <div class="row" style="margin-top:10px"><button class="btn gray" id="lsPrev" style="flex:1">‹ 이전</button><button class="btn" id="lsNext" style="flex:2">다음 ›</button></div>
     </div>
@@ -1377,9 +1390,10 @@ const ROWN = (i) => Math.floor(i / 9) + 1 + '행 ' + (i % 9 + 1) + '열';
 const UNAMEC = (u) => (u < 9 ? u + 1 + '행' : u < 18 ? u - 8 + '열' : u - 17 + '번 박스');
 const josa = (w, a, b) => { const t = String(w), ch = t[t.length - 1]; if (/[0-9]/.test(ch)) return t + ('1367890'.includes(ch) ? a : b); const k = ch.charCodeAt(0) - 0xac00; return t + (k >= 0 && k < 11172 && k % 28 ? a : b); };
 async function lsLoad() {
-  LS.ex = null; LS.solved = false; LS.hintOn = false; lsRender(); $('#lsExp').textContent = '연습 판을 만드는 중…';
+  lsAuto(false); LS.ex = null; LS.frames = null; LS.solved = false; LS.hintOn = false; LS.wrong = false; lsRender(); $('#lsExp').textContent = '연습 판을 만드는 중…';
   try { LS.ex = await api('learn/ex', { lesson: LS.lesson.id }); } catch (e) { $('#lsExp').textContent = e.message; return; }
-  lsRender();
+  if (!LS) return;
+  lsRender(); if (LS.stage === 0) lsAuto(true);
 }
 function openLesson(id) {
   const l = LESSONS.find((x) => x.id === id); if (!l) return;
@@ -1388,73 +1402,173 @@ function openLesson(id) {
   if (l.id === 'rules') { lsRender(); return; }
   lsLoad();
 }
-function closeLesson() { $('#lesson').classList.add('hide'); LS = null; renderLearnList(); }
+function closeLesson() { lsAuto(false); $('#lesson').classList.add('hide'); LS = null; renderLearnList(); }
 $('#lsBack').onclick = closeLesson;
 document.querySelectorAll('#lsTabs span').forEach((t) => { t.onclick = () => { if (!LS || LS.lesson.id === 'rules') return; LS.stage = +t.dataset.s; LS.sub = 0; lsLoad(); }; });
-function lsStepTexts() { // 예제 보기 단계별 설명
-  const l = LS.lesson, st = LS.ex.step, v = st.v;
-  if (st.tech === 'hsingle') return [l.intro, josa(UNAMEC(st.unit), '을', '를') + ' 보세요. 이 안에서 ' + josa(v, '이', '가') + ' 들어갈 수 있는 칸(후보에 ' + josa(v, '이', '가') + ' 적힌 칸)을 찾아요.', josa(v, '이', '가') + ' 갈 수 있는 곳은 ' + ROWN(st.i) + '뿐이에요. 그래서 여기에 ' + v + '!'];
-  if (st.tech === 'nsingle') return [l.intro, ROWN(st.i) + '의 행·열·박스에 있는 숫자들을 보세요 (강조된 칸).', '1~9 중 남은 숫자는 ' + v + ' 하나뿐이에요. 그래서 ' + ROWN(st.i) + '에는 ' + v + '!'];
-  return [l.intro, '파란 칸을 보세요. ' + st.name + ' 모양이에요.', st.text.replace(/\.$/, '') + '. 빨간 줄이 그어진 후보를 지워요.'];
+/* 레슨 시연: 판 위에 선·동그라미·✕를 그려 가며 한 단계씩 보여줘요 */
+const R_ = (i) => Math.floor(i / 9), C_ = (i) => i % 9, B_ = (i) => Math.floor(R_(i) / 3) * 3 + Math.floor(C_(i) / 3);
+const UC = (u) => [...Array(81).keys()].filter((i) => (u < 9 ? R_(i) === u : u < 18 ? C_(i) === u - 9 : B_(i) === u - 18));
+const unitOfCells = (cs) => (cs.every((i) => R_(i) === R_(cs[0])) ? R_(cs[0]) : cs.every((i) => C_(i) === C_(cs[0])) ? 9 + C_(cs[0]) : 18 + B_(cs[0]));
+const sees = (a, b) => a !== b && (R_(a) === R_(b) || C_(a) === C_(b) || B_(a) === B_(b));
+const digsOf = (m) => [1, 2, 3, 4, 5, 6, 7, 8, 9].filter((d) => m & (1 << d));
+const listRC = (cs) => cs.map(ROWN).join(', ');
+function lsFrames() {
+  if (LS.frames) return LS.frames;
+  const l = LS.lesson, ex = LS.ex, st = ex.step, v = st.v, F = [];
+  const base = (o) => ({ t: '', focus: null, area: [], outline: [], circ: [], circ2: [], lines: [], cross: [], strike: false, place: null, ...o });
+  F.push(base({ t: l.intro }));
+  if (st.tech === 'hsingle') {
+    const unit = UC(st.unit), empt = unit.filter((k) => !ex.values[k] && k !== st.i);
+    F.push(base({ focus: [v], outline: [st.unit], area: unit, t: UNAMEC(st.unit) + '에서 ' + josa(v, '이', '가') + ' 어디에 들어갈 수 있는지 찾아요. 빈칸은 ' + (empt.length + 1) + '개예요.' }));
+    const groups = new Map();
+    for (const k of empt) { // 이 칸에 v가 못 오는 이유: 같은 행·열·박스에 이미 있는 v
+      const b = [...Array(81).keys()].find((x) => ex.values[x] === v && sees(x, k) && !unit.includes(x));
+      if (b == null) continue; if (!groups.has(b)) groups.set(b, []); groups.get(b).push(k);
+    }
+    let lines = [], cross = [], circ = [];
+    [...groups.entries()].forEach(([b, ks], n, arr) => {
+      lines = lines.concat(ks.map((k) => ({ a: b, b: k }))); cross = cross.concat(ks); circ = circ.concat([b]);
+      const why = R_(b) === R_(ks[0]) && ks.every((k) => R_(k) === R_(b)) ? '행' : ks.every((k) => C_(k) === C_(b)) ? '열' : ks.every((k) => B_(k) === B_(b)) ? '박스' : '줄';
+      if (n < 3 || n === arr.length - 1) F.push(base({ focus: [v], outline: [st.unit], area: unit, lines: lines.slice(), cross: cross.slice(), circ: circ.slice(),
+        t: ROWN(b) + '에 ' + josa(v, '이', '가') + ' 있어요. 같은 ' + why + '인 ' + listRC(ks) + '에는 ' + josa(v, '이', '가') + ' 못 들어가요 (✕).' + (n === 2 && arr.length > 4 ? ' 다른 칸들도 같은 이유로 안 돼요.' : '') }));
+    });
+    F.push(base({ focus: [v], outline: [st.unit], area: unit, lines, cross, circ, place: { i: st.i, v }, t: '✕가 없는 칸은 ' + ROWN(st.i) + ' 하나뿐이에요. 그래서 여기에 ' + v + '! 이게 히든 싱글이에요.' }));
+  } else if (st.tech === 'nsingle') {
+    const i = st.i, seen = new Set(), steps = [[R_(i), '행'], [9 + C_(i), '열'], [18 + B_(i), '박스']];
+    let circ = [], outline = [];
+    for (const [u, nm] of steps) {
+      const vals = UC(u).filter((k) => ex.values[k]); const newD = [...new Set(vals.map((k) => ex.values[k]))].filter((d) => !seen.has(d)).sort();
+      newD.forEach((d) => seen.add(d)); circ = circ.concat(vals.filter((k) => newD.includes(ex.values[k]))); outline = outline.concat([u]);
+      F.push(base({ outline: outline.slice(), circ: circ.slice(), circ2: [i], area: [i], t: '같은 ' + nm + '에 있는 숫자 ' + (newD.length ? newD.join(', ') : '(새로 없음)') + ' → 이 칸에는 못 와요. 지금까지 지운 숫자: ' + [...seen].sort().join(' ') }));
+    }
+    F.push(base({ outline, circ, area: [i], place: { i, v }, t: '1~9 중 남은 숫자는 ' + v + ' 하나뿐이에요. 그래서 ' + ROWN(i) + '에는 ' + v + '! 이게 네이키드 싱글이에요.' }));
+  } else {
+    const cells = st.cells, el = [...new Set(st.elims.map((e) => e[0]))], ed = [...new Set(st.elims.map((e) => e[1]))];
+    const fin = (o) => base({ ...o, cross: el, strike: true, t: o.t });
+    if (st.tech === 'pointing' || st.tech === 'claiming') {
+      const box = 18 + B_(cells[0]), line = R_(cells[0]) === R_(cells[1]) ? R_(cells[0]) : 9 + C_(cells[0]);
+      const first = st.tech === 'pointing' ? box : line, second = st.tech === 'pointing' ? line : box;
+      F.push(base({ focus: [v], t: '숫자 ' + v + '의 후보만 진하게 보여요. 나머지 후보는 흐리게 했어요.' }));
+      F.push(base({ focus: [v], outline: [first], area: UC(first), circ: cells, t: UNAMEC(first) + '에서 ' + josa(v, '이', '가') + ' 들어갈 수 있는 칸은 동그라미 친 ' + cells.length + '칸뿐이에요.' }));
+      F.push(base({ focus: [v], outline: [first, second], area: UC(first), circ: cells, lines: [{ a: cells[0], b: cells[cells.length - 1], ext: second }],
+        t: '이 칸들은 모두 ' + UNAMEC(second) + ' 안에 있어요. 그러니 ' + UNAMEC(second) + '의 ' + josa(v, '은', '는') + ' 반드시 이 칸들 중 하나예요.' }));
+      F.push(fin({ focus: [v], outline: [first, second], area: UC(first), circ: cells, lines: [{ a: cells[0], b: cells[cells.length - 1], ext: second }], t: '그래서 ' + UNAMEC(second) + '의 나머지 칸(✕)에서는 ' + josa(v, '을', '를') + ' 지워요.' }));
+    } else if (/pair|triple/.test(st.tech)) {
+      const u = unitOfCells(cells), naked = st.tech[0] === 'n';
+      const D = naked ? digsOf(cells.reduce((a, i) => a | ex.cands[i], 0)) : [1, 2, 3, 4, 5, 6, 7, 8, 9].filter((d) => UC(u).some((k) => ex.cands[k] & (1 << d)) && UC(u).every((k) => !(ex.cands[k] & (1 << d)) || cells.includes(k)));
+      F.push(base({ focus: D, outline: [u], area: UC(u), circ: cells, t: naked ? '동그라미 친 ' + cells.length + '칸을 보세요. 후보가 ' + D.join('·') + '뿐이에요.' : UNAMEC(u) + '에서 숫자 ' + josa(D.join('·'), '이', '가') + ' 들어갈 수 있는 칸은 동그라미 친 ' + cells.length + '칸뿐이에요.' }));
+      F.push(base({ focus: D, outline: [u], area: UC(u), circ: cells, t: naked ? josa(D.join('·'), '은', '는') + ' 이 ' + cells.length + '칸이 하나씩 나눠 가져요. ' + UNAMEC(u) + '의 다른 칸에는 올 수 없어요.' : '그러니 이 ' + cells.length + '칸은 ' + D.join('·') + ' 차지예요. 다른 숫자가 들어갈 자리가 없어요.' }));
+      F.push(fin({ focus: naked ? D : ed, outline: [u], area: UC(u), circ: cells, t: naked ? UNAMEC(u) + '의 다른 칸(✕)에서 ' + josa(ed.join('·'), '을', '를') + ' 지워요.' : '동그라미 칸의 다른 후보 ' + josa(ed.join('·'), '을', '를') + ' 지워요.' }));
+    } else if (st.tech === 'xwing' || st.tech === 'swordfish') {
+      const rows = [...new Set(cells.map(R_))], cols = [...new Set(cells.map(C_))];
+      const byRow = rows.every((r) => st.area.includes(r * 9) && st.area.includes(r * 9 + 8)) && rows.length <= cols.length;
+      const baseU = byRow ? rows.map((r) => r) : cols.map((c) => 9 + c), coverU = byRow ? cols.map((c) => 9 + c) : rows.map((r) => r);
+      const links = []; baseU.forEach((u) => { const cs = cells.filter((k) => UC(u).includes(k)); for (let k = 1; k < cs.length; k++) links.push({ a: cs[k - 1], b: cs[k] }); });
+      F.push(base({ focus: [v], t: '숫자 ' + v + '의 후보만 진하게 보여요.' }));
+      F.push(base({ focus: [v], outline: baseU, circ: cells, lines: links, t: baseU.map(UNAMEC).join('·') + '에서 ' + josa(v, '이', '가') + ' 들어갈 수 있는 칸은 동그라미 친 곳뿐이에요. 각 줄에 ' + v + '은 하나씩 꼭 들어가요.' }));
+      F.push(base({ focus: [v], outline: baseU.concat(coverU), circ: cells, lines: links, t: '이 칸들은 모두 ' + coverU.map(UNAMEC).join('·') + ' 안에 있어요. 그래서 이 ' + coverU.length + '줄의 ' + josa(v, '은', '는') + ' 모두 동그라미 칸에서 채워져요.' }));
+      F.push(fin({ focus: [v], outline: coverU, circ: cells, lines: links, t: coverU.map(UNAMEC).join('·') + '의 나머지 칸(✕)에서 ' + josa(v, '을', '를') + ' 지워요.' }));
+    } else if (['skyscraper', 'kite', 'turbot'].includes(st.tech)) {
+      const [a1, a2, b1, b2] = cells;
+      F.push(base({ focus: [v], t: '숫자 ' + v + '의 후보만 진하게 보여요.' }));
+      F.push(base({ focus: [v], circ: [a1, a2], lines: [{ a: a1, b: a2 }], t: josa(ROWN(a1), '과', '와') + ' ' + ROWN(a2) + ': 이 줄에서 ' + josa(v, '이', '가') + ' 갈 곳은 두 칸뿐이라, 둘 중 하나는 반드시 ' + v + ' (실선).' }));
+      F.push(base({ focus: [v], circ: [a1, a2, b1, b2], lines: [{ a: a1, b: a2 }, { a: b1, b: b2 }], t: josa(ROWN(b1), '과', '와') + ' ' + ROWN(b2) + '도 마찬가지예요.' }));
+      F.push(base({ focus: [v], circ: [a1, a2, b1, b2], lines: [{ a: a1, b: a2 }, { a: b1, b: b2 }, { a: a2, b: b1, dash: true }], t: josa(ROWN(a2), '과', '와') + ' ' + josa(ROWN(b1), '은', '는') + ' 서로 보고 있어서 둘 다 ' + v + '일 수는 없어요 (점선).' }));
+      F.push(base({ focus: [v], circ2: [a1, b2], circ: [a2, b1], lines: [{ a: a1, b: a2 }, { a: b1, b: b2 }, { a: a2, b: b1, dash: true }], t: '그러니 양 끝 ' + ROWN(a1) + ' 또는 ' + ROWN(b2) + ' 중 적어도 하나는 반드시 ' + v + '.' }));
+      F.push(fin({ focus: [v], circ2: [a1, b2], circ: [a2, b1], lines: [{ a: a1, b: a2 }, { a: b1, b: b2 }, { a: a2, b: b1, dash: true }], t: '두 끝을 모두 보는 칸(✕)에는 ' + josa(v, '이', '가') + ' 올 수 없어요. 그래서 지워요.' }));
+    } else { // XY-윙, XYZ-윙
+      const [p, w1, w2] = cells, D = digsOf(ex.cands[p] | ex.cands[w1] | ex.cands[w2]);
+      F.push(base({ focus: D, circ2: [p], t: '축 ' + ROWN(p) + '의 후보는 ' + digsOf(ex.cands[p]).join('·') + '예요.' }));
+      F.push(base({ focus: D, circ2: [p], circ: [w1, w2], lines: [{ a: p, b: w1 }, { a: p, b: w2 }], t: '축이 보는 날개 두 칸: ' + ROWN(w1) + '(' + digsOf(ex.cands[w1]).join('·') + '), ' + ROWN(w2) + '(' + digsOf(ex.cands[w2]).join('·') + ').' }));
+      F.push(base({ focus: [v], circ2: [p], circ: [w1, w2], lines: [{ a: p, b: w1 }, { a: p, b: w2 }], t: '축이 어느 숫자가 되든, 날개 중 하나는 ' + josa(v, '이', '가') + ' 돼요. (축이 한쪽 숫자면 그 날개가 ' + v + ', 다른 숫자면 반대쪽 날개가 ' + v + ')' }));
+      F.push(fin({ focus: [v], circ2: [p], circ: [w1, w2], lines: [{ a: p, b: w1 }, { a: p, b: w2 }], t: '두 날개를 모두 보는 칸(✕)에서는 ' + josa(v, '을', '를') + ' 지워요.' }));
+    }
+  }
+  LS.frames = F; return F;
 }
+function lsFrameNow() {
+  const F = lsFrames(); if (LS.stage === 0) return F[Math.min(LS.sub, F.length - 1)];
+  if (LS.solved) return F[F.length - 1];
+  const pat = { ...F[F.length - 2], t: '' }; // 동그라미·선까지 (지우기 전)
+  if (LS.stage === 1 || LS.hintOn) return ['hsingle', 'nsingle'].includes(LS.ex.step.tech) ? { ...pat, lines: [], cross: [], circ: [] } : pat;
+  return { focus: null, area: [], outline: [], circ: [], circ2: [], lines: [], cross: [], strike: false, place: null };
+}
+function lsDrawSvg(fr) {
+  const svg = $('#lsSvg'), ctr = (i) => [C_(i) + 0.5, R_(i) + 0.5];
+  let h = '';
+  for (const u of fr.outline) {
+    const [x, y, w, hh] = u < 9 ? [0, u, 9, 1] : u < 18 ? [u - 9, 0, 1, 9] : [((u - 18) % 3) * 3, Math.floor((u - 18) / 3) * 3, 3, 3];
+    h += '<rect x="' + (x + 0.05) + '" y="' + (y + 0.05) + '" width="' + (w - 0.1) + '" height="' + (hh - 0.1) + '" class="so"/>';
+  }
+  for (const ln of fr.lines) {
+    let [x1, y1] = ctr(ln.a), [x2, y2] = ctr(ln.b);
+    if (ln.ext != null) { if (ln.ext < 9) { x1 = 0.15; x2 = 8.85; } else { y1 = 0.15; y2 = 8.85; } }
+    h += '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" class="sl' + (ln.dash ? ' dash' : '') + (ln.ext != null ? ' ext' : '') + '"/>';
+  }
+  for (const i of fr.circ) { const [x, y] = ctr(i); h += '<circle cx="' + x + '" cy="' + y + '" r="0.42" class="sc"/>'; }
+  for (const i of fr.circ2) { const [x, y] = ctr(i); h += '<circle cx="' + x + '" cy="' + y + '" r="0.44" class="sc2"/>'; }
+  for (const i of fr.cross) { const [x, y] = ctr(i); h += '<path d="M' + (x - 0.3) + ' ' + (y - 0.3) + 'L' + (x + 0.3) + ' ' + (y + 0.3) + 'M' + (x + 0.3) + ' ' + (y - 0.3) + 'L' + (x - 0.3) + ' ' + (y + 0.3) + '" class="sx"/>'; }
+  svg.innerHTML = h;
+}
+let lsTimer = 0;
+function lsAuto(on) {
+  clearInterval(lsTimer); lsTimer = 0; if (LS) LS.playing = on;
+  $('#lsPlay').textContent = on ? '⏸ 멈춤' : '▶ 자동 재생';
+  if (on) lsTimer = setInterval(() => { if (!LS || LS.stage !== 0) return lsAuto(false); const F = lsFrames(); if (LS.sub < F.length - 1) { LS.sub++; lsRender(); } else lsAuto(false); }, 2600);
+}
+$('#lsPlay').onclick = () => { if (!LS || !LS.ex || LS.stage !== 0) return; if (!LS.playing && LS.sub >= lsFrames().length - 1) LS.sub = 0; lsAuto(!LS.playing); lsRender(); };
 function lsRender() {
   if (!LS) return;
   const l = LS.lesson, rules = l.id === 'rules';
   document.querySelectorAll('#lsTabs span').forEach((t) => t.classList.toggle('on', !rules && +t.dataset.s === LS.stage));
-  $('#lsTabs').classList.toggle('hide', rules); $('#lsBoard').classList.toggle('hide', rules);
+  $('#lsTabs').classList.toggle('hide', rules); $('#lsWrap').classList.toggle('hide', rules);
   const steps = $('#lsSteps'); steps.innerHTML = '';
+  $('#lsPlay').classList.toggle('hide', rules || LS.stage !== 0 || !LS.ex);
   if (rules) {
     $('#lsPos').textContent = (LS.sub + 1) + ' / ' + RULES.length;
     RULES.forEach((_, k) => { const i = document.createElement('i'); if (k <= LS.sub) i.className = 'on'; steps.appendChild(i); });
     $('#lsExp').textContent = RULES[LS.sub];
-    $('#lsPrev').disabled = LS.sub === 0; $('#lsNext').textContent = LS.sub === RULES.length - 1 ? '완료' : '다음 ›'; $('#lsNext').disabled = false;
+    $('#lsPrev').disabled = LS.sub === 0; $('#lsPrev').textContent = '‹ 이전'; $('#lsNext').textContent = LS.sub === RULES.length - 1 ? '완료' : '다음 ›'; $('#lsNext').disabled = false;
     return;
   }
   $('#lsPos').textContent = ['예제', '같이', '혼자'][LS.stage];
   const ex = LS.ex, see = LS.stage === 0;
-  const texts = ex && see ? lsStepTexts() : [];
-  if (see) texts.forEach((_, k) => { const i = document.createElement('i'); if (k <= LS.sub) i.className = 'on'; steps.appendChild(i); });
-  // 판 그리기
-  const st = ex && ex.step, elim = new Map();
-  if (st) st.elims.forEach(([i, d]) => { if (!elim.has(i)) elim.set(i, new Set()); elim.get(i).add(d); });
-  const showArea = ex && ((see && LS.sub >= 1) || LS.stage === 1 || LS.hintOn);
-  const showRes = ex && ((see && LS.sub >= 2) || LS.solved);
-  const area = new Set(showArea ? st.area : []), pat = new Set(showArea ? st.cells : []);
+  if (!ex) { LC.forEach((el, i) => { el.className = 'c' + (i % 9 % 3 === 2 ? ' cr' : '') + (Math.floor(i / 9) % 3 === 2 ? ' rb' : ''); el.textContent = ''; }); $('#lsSvg').innerHTML = ''; $('#lsPrev').disabled = true; $('#lsNext').disabled = true; return; }
+  const F = lsFrames(), fr = lsFrameNow(), st = ex.step;
+  if (see) F.forEach((_, k) => { const i = document.createElement('i'); if (k <= LS.sub) i.className = 'on'; steps.appendChild(i); });
+  const focus = fr.focus ? new Set(fr.focus) : null, area = new Set(fr.area), strike = new Map();
+  if (fr.strike) st.elims.forEach(([i, d]) => { if (!strike.has(i)) strike.set(i, new Set()); strike.get(i).add(d); });
   for (let i = 0; i < 81; i++) {
     const el = LC[i]; let cls = 'c' + (i % 9 % 3 === 2 ? ' cr' : '') + (Math.floor(i / 9) % 3 === 2 ? ' rb' : '');
-    if (!ex) { el.className = cls; el.textContent = ''; continue; }
     const v = ex.values[i];
-    if (v) { el.textContent = v; cls += ex.puzzle[i] ? ' given' : ''; }
-    else if (showRes && st.i === i && (st.tech === 'hsingle' || st.tech === 'nsingle')) { el.textContent = st.v; cls += ' tgt'; }
+    if (v) { el.textContent = v; if (ex.puzzle[i]) cls += ' given'; if (focus && !focus.has(v) && fr.focus.length === 1) cls += ' fdim'; }
+    else if (fr.place && fr.place.i === i) { el.textContent = fr.place.v; cls += ' tgt pop2'; }
     else {
-      let h = '<div class="nt">'; const m = ex.cands[i], ed = showRes ? elim.get(i) : null;
-      for (let d = 1; d <= 9; d++) h += '<span' + (ed && ed.has(d) ? ' class="x"' : showArea && st.v === d && (pat.has(i) || area.has(i)) ? ' class="k"' : '') + '>' + (m & (1 << d) ? d : '') + '</span>';
+      let h = '<div class="nt">'; const m = ex.cands[i], sd = strike.get(i);
+      for (let d = 1; d <= 9; d++) { const has = m & (1 << d); h += '<span' + (has && sd && sd.has(d) ? ' class="x"' : has && focus ? (focus.has(d) ? ' class="k"' : ' class="dm"') : '') + '>' + (has ? d : '') + '</span>'; }
       el.innerHTML = h + '</div>';
     }
-    if (pat.has(i)) cls += ' hpat'; else if (showRes && elim.has(i)) cls += ' helim'; else if (area.has(i)) cls += ' harea';
-    if (showRes && st.i === i) cls += ' tgt';
+    if (area.has(i)) cls += ' harea';
     if (!see && !v) cls += ' hit';
     el.className = cls;
   }
-  // 설명·버튼
+  lsDrawSvg(fr);
   const exp = $('#lsExp');
-  if (!ex) { $('#lsPrev').disabled = true; $('#lsNext').disabled = true; return; }
   if (see) {
-    exp.innerHTML = '<b>' + (LS.sub + 1) + '단계.</b> '; exp.appendChild(document.createTextNode(texts[LS.sub]));
-    $('#lsPrev').disabled = LS.sub === 0; $('#lsNext').disabled = false; $('#lsNext').textContent = LS.sub === texts.length - 1 ? '같이 해 보기 ›' : '다음 ›';
-  } else {
-    const ask = l.ask + (st.v && !['hsingle', 'nsingle'].includes(st.tech) ? ' (숫자 ' + st.v + ')' : '');
-    if (LS.solved) {
-      exp.innerHTML = '<span class="good">✓ 정답!</span> '; exp.appendChild(document.createTextNode(st.text ? st.text : (st.tech === 'hsingle' ? UNAMEC(st.unit) + '에서 ' + josa(st.v, '이', '가') + ' 갈 곳은 ' + ROWN(st.i) + '뿐이에요.' : ROWN(st.i) + '에는 ' + st.v + '만 들어갈 수 있어요.')));
-      $('#lsNext').textContent = LS.stage === 1 ? '혼자 해 보기 ›' : '레슨 완료 ✓';
-    } else {
-      exp.textContent = (LS.stage === 1 ? '파란·강조된 칸을 참고해서 ' : '') + ask + '.';
-      if (LS.wrong) { const s = document.createElement('div'); s.className = 'no'; s.textContent = '거기는 아니에요. 다시 찾아보세요!'; exp.appendChild(s); }
-      $('#lsNext').textContent = LS.stage === 2 ? '힌트 보기' : '정답 보기';
-    }
-    $('#lsPrev').disabled = false; $('#lsPrev').textContent = '‹ 이전 단계'; $('#lsNext').disabled = false;
+    exp.innerHTML = '<b>' + (LS.sub + 1) + ' / ' + F.length + '</b> '; exp.appendChild(document.createTextNode(fr.t));
+    $('#lsPrev').disabled = LS.sub === 0; $('#lsPrev').textContent = '‹ 이전'; $('#lsNext').disabled = false; $('#lsNext').textContent = LS.sub === F.length - 1 ? '같이 해 보기 ›' : '다음 ›';
+    return;
   }
-  if (see) $('#lsPrev').textContent = '‹ 이전';
+  const ask = l.ask + (st.v && !['hsingle', 'nsingle'].includes(st.tech) ? ' (숫자 ' + st.v + ')' : '');
+  if (LS.solved) {
+    exp.innerHTML = '<span class="good">✓ 정답!</span> '; exp.appendChild(document.createTextNode(F[F.length - 1].t));
+    $('#lsNext').textContent = LS.stage === 1 ? '혼자 해 보기 ›' : '레슨 완료 ✓';
+  } else {
+    exp.textContent = (LS.stage === 1 ? '동그라미와 선을 참고해서 ' : '') + ask + '.';
+    if (LS.wrong) { const s = document.createElement('div'); s.className = 'no'; s.textContent = '거기는 아니에요. 다시 찾아보세요!'; exp.appendChild(s); }
+    $('#lsNext').textContent = LS.stage === 2 && !LS.hintOn ? '힌트 보기' : '정답 보기';
+  }
+  $('#lsPrev').disabled = false; $('#lsPrev').textContent = '‹ 이전 단계'; $('#lsNext').disabled = false;
 }
 function lsTap(i) {
   if (!LS || !LS.ex || LS.stage === 0 || LS.solved) return;
@@ -1474,14 +1588,14 @@ function lsAlsoSingle(i) { // 같은 종류의 다른 정답 칸도 인정
 }
 $('#lsPrev').onclick = () => {
   if (!LS) return;
-  if (LS.lesson.id === 'rules' || LS.stage === 0) { if (LS.sub > 0) { LS.sub--; lsRender(); } return; }
+  if (LS.lesson.id === 'rules' || LS.stage === 0) { lsAuto(false); if (LS.sub > 0) { LS.sub--; lsRender(); } return; }
   LS.stage--; LS.sub = 0; lsLoad();
 };
 $('#lsNext').onclick = () => guard(async () => {
   if (!LS) return;
   const l = LS.lesson;
   if (l.id === 'rules') { if (LS.sub < RULES.length - 1) { LS.sub++; lsRender(); return; } return finishLesson(); }
-  if (LS.stage === 0) { if (LS.sub < lsStepTexts().length - 1) { LS.sub++; lsRender(); } else { LS.stage = 1; LS.sub = 0; lsLoad(); } return; }
+  if (LS.stage === 0) { lsAuto(false); if (LS.sub < lsFrames().length - 1) { LS.sub++; lsRender(); } else { LS.stage = 1; LS.sub = 0; lsLoad(); } return; }
   if (!LS.solved) { if (LS.stage === 2 && !LS.hintOn) { LS.hintOn = true; lsRender(); return; } LS.solved = true; LS.wrong = false; lsRender(); return; }
   if (LS.stage === 1) { LS.stage = 2; LS.sub = 0; lsLoad(); return; }
   finishLesson();
