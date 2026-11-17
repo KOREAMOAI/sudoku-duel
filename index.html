@@ -74,6 +74,7 @@ th{color:var(--mute);font-weight:500;font-size:12px}td.n{text-align:left}
 .c.pop{animation:pop .3s}
 .c.shake{animation:shake .3s}
 .nt{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));font-size:clamp(8px,2.7vw,13px);line-height:1;color:var(--mute);font-weight:500;font-variant-numeric:tabular-nums}
+.nt span.hl{background:var(--same);color:var(--ink);font-weight:800;border-radius:3px}
 .nt span{display:flex;align-items:center;justify-content:center;min-width:0;min-height:0}
 @keyframes pop{0%{transform:scale(.7)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
@@ -85,8 +86,8 @@ th{color:var(--mute);font-weight:500;font-size:12px}td.n{text-align:left}
 .res{font-size:30px;font-weight:800;margin-bottom:4px}.res.w{color:var(--me)}.res.l{color:var(--bad)}
 .frz{position:absolute;inset:0;background:rgba(186,230,253,.55);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#0369a1;pointer-events:none}
 .ctl{display:flex;justify-content:space-around;margin:12px 0 4px}
-.ctl button{display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:0;color:var(--ink);font-size:12px;padding:4px 8px;position:relative;min-width:64px}
-.ctl .ic{width:44px;height:44px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:20px}
+.ctl button{display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:0;color:var(--ink);font-size:12px;padding:4px 8px;position:relative;min-width:0;flex:1;white-space:nowrap}
+.ctl .ic{width:40px;height:40px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:20px}
 .ctl button:disabled{opacity:.35}
 .ctl .badge{position:absolute;top:0;right:8px;background:var(--blue);color:#fff;font-size:11px;border-radius:9px;min-width:18px;padding:1px 5px}
 .ctl .badge.off{background:var(--mute)}
@@ -542,6 +543,8 @@ html:has(#room:not(.hide)),body:has(#room:not(.hide)){overflow:hidden;overscroll
     <button id="bUndo"><span class="ic">↩️</span>실행 취소</button>
     <button id="bErase"><span class="ic">🧽</span>지우기</button>
     <button id="bNote"><span class="ic">✏️</span>메모<span class="badge off" id="noteBadge">OFF</span></button>
+    <button id="bAuto"><span class="ic">⚡</span>빠른 메모</button>
+    <button id="bClr"><span class="ic">🧹</span>메모 비우기</button>
     <button id="bHint"><span class="ic">💡</span>힌트<span class="badge" id="hintBadge">3</span></button>
   </div>
   <div class="pad" id="pad"></div>
@@ -1344,7 +1347,8 @@ async function undoMove() {
   if (!isRace() || S.status !== 'playing') return;
   const u = undo.pop();
   if (!u) return toast('되돌릴 내용이 없어요');
-  if (u.t === 'note') { notes[u.i] = u.prev; sel = u.i; render(); }
+  if (u.t === 'notes') { notes = u.prev; render(); }
+  else if (u.t === 'note') { notes[u.i] = u.prev; sel = u.i; render(); }
   else if (S.wrong && S.wrong[u.i]) { try { await call('erase', { i: u.i }); sel = u.i; } catch (e) { toast(e.message); } }
   else undoMove();
 }
@@ -1357,8 +1361,28 @@ async function useHint() {
     cells[r.i].classList.add('pop'); setTimeout(() => cells[r.i].classList.remove('pop'), 350);
   } catch (e) { toast(e.message); }
 }
+function candMask(i) {
+  let m = 0b1111111110;
+  peers(i).forEach((k) => { const x = S.values[k]; if (x && !(S.wrong && S.wrong[k])) m &= ~(1 << x); });
+  return m;
+}
+function autoNotes() {
+  if (!isRace() || S.status !== 'playing') return;
+  undo.push({ t: 'notes', prev: notes.slice() });
+  for (let i = 0; i < 81; i++) {
+    if (S.values[i]) { notes[i] = 0; continue; }
+    if (!notes[i]) notes[i] = candMask(i);
+    else notes[i] &= candMask(i);
+  }
+  toast('⚡ 가능한 후보를 메모로 채웠어요'); render();
+}
+function clearNotes() {
+  if (!isRace() || S.status !== 'playing') return;
+  if (!notes.some((n) => n)) return toast('지울 메모가 없어요');
+  undo.push({ t: 'notes', prev: notes.slice() }); notes = new Array(81).fill(0); render();
+}
 function toggleNote() { noteMode = !noteMode; render(); }
-$('#bUndo').onclick = undoMove; $('#bErase').onclick = eraseCell; $('#bNote').onclick = toggleNote; $('#bHint').onclick = useHint;
+$('#bUndo').onclick = undoMove; $('#bErase').onclick = eraseCell; $('#bNote').onclick = toggleNote; $('#bHint').onclick = useHint; $('#bAuto').onclick = autoNotes; $('#bClr').onclick = clearNotes;
 
 document.addEventListener('keydown', (e) => {
   if (!S || $('#room').classList.contains('hide')) return;
@@ -1403,9 +1427,9 @@ function handleEvents() {
 }
 
 /* ---------- 렌더 ---------- */
-function noteHTML(mask) {
+function noteHTML(mask, hl) {
   let h = '<div class="nt">';
-  for (let v = 1; v <= 9; v++) h += '<span>' + (mask & (1 << v) ? v : '') + '</span>';
+  for (let v = 1; v <= 9; v++) h += '<span' + (hl === v && mask & (1 << v) ? ' class="hl"' : '') + '>' + (mask & (1 << v) ? v : '') + '</span>';
   return h + '</div>';
 }
 function render() {
@@ -1457,10 +1481,11 @@ function render() {
     }
     const bad = race && !isPend && S.wrong && S.wrong[i];
     if (v && !bad) counts[v]++;
-    const key = v + '|' + (race && !v ? notes[i] : 0) + (isPend ? 'p' : '');
+    const hlv = selv && !v ? selv : 0;
+    const key = v + '|' + (race && !v ? notes[i] : 0) + (isPend ? 'p' : '') + (race && !v && notes[i] ? '|' + hlv : '');
     if (el._k !== key) {
       el._k = key;
-      if (v) el.textContent = v; else if (race && notes[i]) el.innerHTML = noteHTML(notes[i]); else el.textContent = '';
+      if (v) el.textContent = v; else if (race && notes[i]) el.innerHTML = noteHTML(notes[i], hlv); else el.textContent = '';
     }
     let cls = 'c' + (i % 9 % 3 === 2 ? ' cr' : '') + (Math.floor(i / 9) % 3 === 2 ? ' rb' : '');
     if (S.puzzle && S.puzzle[i]) cls += ' given';
@@ -1484,7 +1509,7 @@ function render() {
   $('#noteBadge').textContent = noteMode ? 'ON' : 'OFF'; $('#noteBadge').classList.toggle('off', !noteMode);
   const left = 3 - me.hints;
   $('#hintBadge').textContent = left; $('#bHint').disabled = S.status !== 'playing' || left <= 0 || paused;
-  ['#bUndo', '#bErase', '#bNote'].forEach((b) => { $(b).disabled = S.status !== 'playing' || paused; });
+  ['#bUndo', '#bErase', '#bNote', '#bAuto', '#bClr'].forEach((b) => { $(b).disabled = S.status !== 'playing' || paused; });
   const item = $('#item');
   item.disabled = S.status !== 'playing' || me.itemUsed;
   item.textContent = me.itemUsed ? '❄️ 동결 사용함' : '❄️ 상대 3초 동결 (1회)';
