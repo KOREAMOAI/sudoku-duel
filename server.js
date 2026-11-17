@@ -258,16 +258,6 @@ setInterval(() => { const now = Date.now(); for (const [k, a] of moveLog) if (!a
 const WELCOME_COINS = 100, MATCH_FEE = 10, MATCH_BONUS = 10, BETS = [0, 50, 100, 200, 500];
 const SOLO_REWARD = { beginner: 5, easy: 10, normal: 20, hard: 30, expert: 50 }, SOLO_DAILY_CAP = 150;
 const SHOP = {
-  theme: {
-    light: { name: '기본 (라이트)', price: 0, base: 'light', vars: {} },
-    dark: { name: '다크', price: 0, base: 'dark', vars: {} },
-    ocean: { name: '바다', price: 380, base: 'light', vars: { '--bg': '#f0f9ff', '--edge': '#bae6fd', '--ink': '#0c4a6e', '--mute': '#5b8aa5', '--line': '#9cc7de', '--blue': '#0284c7', '--user': '#0369a1', '--sel': '#7dd3fc', '--rel': '#e0f2fe', '--same': '#bae6fd', '--me': '#0284c7', '--me-bg': '#cdeeff', '--card': '#e6f4fb' } },
-    forest: { name: '숲', price: 380, base: 'light', vars: { '--bg': '#f3f8f1', '--edge': '#cfe3c8', '--ink': '#2b4a2f', '--mute': '#6b8a6e', '--line': '#b4cdb0', '--blue': '#2f7d3a', '--user': '#2e7d32', '--sel': '#b7e1b0', '--rel': '#e5f1e1', '--same': '#cfe8c9', '--me': '#2e7d32', '--me-bg': '#d4efcf', '--card': '#ecf4ea' } },
-    sunset: { name: '노을', price: 500, base: 'light', vars: { '--bg': '#fff7ed', '--edge': '#fed7aa', '--ink': '#7c2d12', '--mute': '#a8694d', '--line': '#e8c3a5', '--blue': '#ea580c', '--user': '#c2410c', '--sel': '#fdba74', '--rel': '#ffedd5', '--same': '#fed7aa', '--me': '#ea580c', '--me-bg': '#ffe0c2', '--card': '#fff1e2' } },
-    sakura: { name: '벚꽃', price: 620, base: 'light', vars: { '--bg': '#fff5f8', '--edge': '#fbcfe8', '--ink': '#831843', '--mute': '#b0668a', '--line': '#ebbad1', '--blue': '#db2777', '--user': '#be185d', '--sel': '#f9a8d4', '--rel': '#fce7f3', '--same': '#fbcfe8', '--me': '#db2777', '--me-bg': '#fbd5e8', '--card': '#fdeaf3' } },
-    retro: { name: '레트로 터미널', price: 750, base: 'dark', vars: { '--bg': '#0a1a0a', '--paper': '#0f240f', '--edge': '#1d4a1d', '--ink': '#8ef08e', '--mute': '#5fae5f', '--line': '#2c6a2c', '--blue': '#22c55e', '--user': '#4ade80', '--sel': '#1f5a1f', '--rel': '#123312', '--same': '#1b4d1b', '--bad': '#ff6b6b', '--bad-bg': '#4a1f1f', '--me': '#4ade80', '--me-bg': '#164016', '--op': '#d1fae5', '--op-bg': '#1c3a1c', '--card': '#122a12', '--theirs-bg': '#2a4d2a', '--theirs-ink': '#eaffea', '--opcur': '#eaffea' } },
-    neon: { name: '심야 네온', price: 1000, base: 'dark', vars: { '--bg': '#0b0620', '--paper': '#150d33', '--edge': '#3a2a7a', '--ink': '#e9e1ff', '--mute': '#9d8fd6', '--line': '#4a3a8f', '--blue': '#a855f7', '--user': '#22d3ee', '--sel': '#3b2a86', '--rel': '#1b1245', '--same': '#33257a', '--bad': '#ff4d8d', '--bad-bg': '#4a1233', '--me': '#22d3ee', '--me-bg': '#0f3a4d', '--op': '#f0abfc', '--op-bg': '#3a1a52', '--card': '#1d1342', '--theirs-bg': '#4a2a7a', '--theirs-ink': '#ffffff', '--opcur': '#f0abfc' } },
-  },
   color: {
     red: { name: '빨강', price: 150, css: '#e11d48' }, blue: { name: '파랑', price: 150, css: '#2563eb' },
     green: { name: '초록', price: 150, css: '#16a34a' }, purple: { name: '보라', price: 200, css: '#9333ea' },
@@ -278,11 +268,6 @@ const SHOP = {
     newbie: { name: '🌱 새싹', price: 80 }, turtle: { name: '🐢 느긋한 고수', price: 200 },
     smart: { name: '🧠 두뇌파', price: 250 }, sniper: { name: '🎯 정확한 손', price: 300 },
     flash: { name: '⚡ 번개손', price: 380 }, fire: { name: '🔥 불꽃', price: 500 }, king: { name: '👑 스도쿠 왕', price: 1250 },
-  },
-  effect: {
-    basic: { name: '기본 색종이', price: 0 }, confetti: { name: '풍성한 색종이', price: 250 },
-    stars: { name: '별똥별', price: 380 }, hearts: { name: '하트 비', price: 380 },
-    lightning: { name: '번개', price: 500 }, fireworks: { name: '불꽃놀이', price: 620 }, gold: { name: '황금 비', price: 750 },
   },
 };
 const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -295,12 +280,15 @@ function eco(nick) {
   if (!u) return null;
   if (!u.eco) {
     u.eco = {
-      coins: WELCOME_COINS, owned: { theme: [], color: [], effect: [], title: [] },
-      eq: { theme: 'light', color: '', effect: 'basic', title: '' },
+      coins: WELCOME_COINS, owned: { color: [], title: [] },
+      eq: { color: '', title: '' },
       daily: { last: '', streak: 0, soloDate: '', soloEarned: 0 },
     };
   }
-  return u.eco;
+  const ec = u.eco; // 테마·승리 연출 판매 종료: 예전 구매·장착 기록은 지워요
+  if (ec.owned.theme || ec.owned.effect || ec.eq.theme || ec.eq.effect) { delete ec.owned.theme; delete ec.owned.effect; delete ec.eq.theme; delete ec.eq.effect; }
+  ec.owned.color = ec.owned.color || []; ec.owned.title = ec.owned.title || [];
+  return ec;
 }
 function streakOf(nick) {
   const e = eco(nick); if (!e) return { solo: 0, soloBest: 0, pvp: 0, pvpBest: 0 };
@@ -333,9 +321,9 @@ function setProfile(nick, icon, msg) {
 function cosm(nick) {
   const e = eco(nick);
   const icon = profileOf(nick).icon;
-  if (!e) return { color: '', title: '', effect: 'basic', icon };
+  if (!e) return { color: '', title: '', icon };
   const c = getItem('color', e.eq.color), t = getItem('title', e.eq.title);
-  return { color: c ? c.css : '', title: t ? t.name : '', effect: getItem('effect', e.eq.effect) ? e.eq.effect : 'basic', icon };
+  return { color: c ? c.css : '', title: t ? t.name : '', icon };
 }
 function shopState(nick) {
   const e = eco(nick), day = kstDay();
@@ -344,10 +332,8 @@ function shopState(nick) {
   const catalog = {};
   for (const k of Object.keys(SHOP)) catalog[k] = Object.entries(SHOP[k]).map(([id, it]) => ({ id, ...it, owned: ownedItem(e, k, id) }));
   catalog.title = catalog.title.concat(e.owned.title.filter((id) => seasonTitle(id)).map((id) => ({ id, ...seasonTitle(id), owned: true })));
-  const th = getItem('theme', e.eq.theme) || SHOP.theme.light;
   return {
     coins: e.coins, eq: e.eq, cosm: cosm(nick), profile: profileOf(nick), streak: streakOf(nick), catalog, quests: questView(nick), notes: e.notes || [], admin: isAdminNick(nick),
-    eqTheme: { id: e.eq.theme, base: th.base, vars: th.vars },
     daily: { canClaim, reward: dailyReward(nextDay), day: nextDay },
     soloToday: e.daily.soloDate === day ? e.daily.soloEarned : 0, soloCap: SOLO_DAILY_CAP,
   };
@@ -364,7 +350,6 @@ function equipItem(nick, kind, id) {
   const e = eco(nick);
   if (!hasOwn(SHOP, kind)) throw new Error('없는 항목이에요');
   if (id === '' || id == null) {
-    if (kind === 'theme' || kind === 'effect') throw new Error('해제할 수 없는 항목이에요');
     e.eq[kind] = '';
   } else {
     if (!ownedItem(e, kind, String(id))) throw new Error('먼저 구매해 주세요');
@@ -906,7 +891,7 @@ function soloResume(g, idle) {
 function soloInfo(nick) {
   const g = solos.get(nick); if (!g || g.status !== 'playing') return null;
   const end = g.pausedAt || (Date.now() - g.updated > SOLO_IDLE_MS ? g.updated : Date.now());
-  return { difficulty: g.difficulty, cells: g.cells, total: g.total, mistakes: g.mistakes, hints: g.hints, elapsed: Math.max(0, end - g.startedAt), savedAt: g.updated };
+  return { daily: !!g.daily, difficulty: g.difficulty, cells: g.cells, total: g.total, mistakes: g.mistakes, hints: g.hints, elapsed: Math.max(0, end - g.startedAt), savedAt: g.updated };
 }
 function persistAllSolos() { const now = Date.now(); for (const g of solos.values()) if (g.status === 'playing') { soloPause(g, g.pausedAt || now); persistSolo(g); } }
 function loadSavedSolos() {
@@ -922,23 +907,80 @@ function soloScore(g, sec) {
   const c = SOLO_CFG[g.difficulty];
   return Math.max(0, c.base + Math.max(0, c.par - sec) * c.k - g.hints * 150 - g.mistakes * 200);
 }
-function soloStart(nick, difficulty) {
-  const d = GIVENS[difficulty] ? difficulty : 'normal';
-  const { solution, puzzle } = generate(d);
+/* ---------- 오늘의 퍼즐 ---------- */
+const DPZ_DIFF = 'normal', DPZ_BASE = 50, DPZ_KEEP = 4, DPZ_MISTAKE_MS = 15000, DPZ_HINT_MS = 30000;
+const dayAdd = (day, n) => new Date(Date.parse(day + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+function dpzDay(day) { // 그날의 퍼즐: 처음 요청될 때 한 번 만들고 모두가 같은 판을 풀어요
+  const m = accounts.dpz = accounts.dpz || {};
+  if (!m[day]) {
+    const { solution, puzzle } = generate(DPZ_DIFF);
+    m[day] = { solution, puzzle, rows: [] };
+    Object.keys(m).sort().slice(0, -DPZ_KEEP).forEach((k) => delete m[k]);
+    saveAcc();
+  }
+  return m[day];
+}
+function dpzState(nick) { // none | playing | done | failed | forfeit
+  const u = userOf(nick), day = kstDay(), d = u && u.dpz && u.dpz.day === day ? u.dpz : null;
+  if (!d) return 'none';
+  if (d.st === 'playing') { const g = solos.get(nick); if (!(g && g.daily === day && g.status === 'playing')) return 'forfeit'; }
+  return d.st;
+}
+function dpzStreakNow(nick) { const u = userOf(nick), s = u && u.dpzStreak; return s && (s.last === kstDay() || s.last === kstDay(-1)) ? s.n : 0; }
+const dpzReward = (n) => DPZ_BASE + Math.min(Math.max(n, 1) - 1, 5) * 10;
+function dpzInfo(nick) {
+  const day = kstDay(), dd = accounts.dpz && accounts.dpz[day], rows = dd ? dd.rows : [];
+  const me = rows.findIndex((r) => r.nick === nick), cur = dpzStreakNow(nick);
+  return {
+    day, diff: DPZ_DIFF, status: dpzState(nick), count: rows.length, myRank: me < 0 ? 0 : me + 1, my: me < 0 ? null : rows[me],
+    streak: cur, reward: dpzReward((userOf(nick) && userOf(nick).dpzStreak && userOf(nick).dpzStreak.last === kstDay(-1) ? cur : 0) + 1),
+    top: rows.slice(0, 20).map((r, i) => ({ rank: i + 1, nick: r.nick, ...cosm(r.nick), ms: r.ms, mistakes: r.mistakes, hints: r.hints })),
+  };
+}
+function dpzStart(nick) {
+  const s = dpzState(nick);
+  if (s === 'playing') throw new Error('이미 진행 중이에요. 이어하기로 계속해 주세요');
+  if (s !== 'none') throw new Error('오늘의 퍼즐은 하루 한 번만 도전할 수 있어요');
+  const day = kstDay(), dd = dpzDay(day);
+  return soloStart(nick, DPZ_DIFF, { solution: dd.solution, puzzle: dd.puzzle, daily: day });
+}
+function dpzFinish(g, won, r, time) {
+  const u = userOf(g.nick); if (!u) return;
+  if (u.dpz && u.dpz.day === g.daily) u.dpz.st = won ? 'done' : 'failed';
+  if (!won) { saveAcc(); return; }
+  const ms = time + g.mistakes * DPZ_MISTAKE_MS + g.hints * DPZ_HINT_MS;
+  const dd = accounts.dpz && accounts.dpz[g.daily];
+  let rank = 0;
+  if (dd && !dd.rows.some((x) => x.nick === g.nick)) {
+    dd.rows.push({ nick: g.nick, ms, time, mistakes: g.mistakes, hints: g.hints });
+    dd.rows.sort((a, b) => a.ms - b.ms); dd.rows.length = Math.min(dd.rows.length, 300);
+    rank = dd.rows.findIndex((x) => x.nick === g.nick) + 1;
+  }
+  const sk = u.dpzStreak || { last: '', n: 0 };
+  const n = sk.last === dayAdd(g.daily, -1) ? sk.n + 1 : sk.last === g.daily ? sk.n : 1;
+  u.dpzStreak = { last: g.daily, n };
+  const reward = dpzReward(n), e = eco(g.nick); if (e) e.coins += reward;
+  r.daily = { reward, streak: n, ms, rank, count: dd ? dd.rows.length : 0 };
+  saveAcc();
+}
+function soloStart(nick, difficulty, fixed) { // fixed: 오늘의 퍼즐처럼 이미 정해진 판 {solution, puzzle, daily}
+  const d = fixed ? DPZ_DIFF : GIVENS[difficulty] ? difficulty : 'normal';
+  const { solution, puzzle } = fixed ? { solution: fixed.solution.slice(), puzzle: fixed.puzzle.slice() } : generate(d);
   const g = {
-    nick, difficulty: d, solution, puzzle, grid: puzzle.slice(), wrong: new Array(81).fill(false),
+    nick, difficulty: d, solution, puzzle, grid: puzzle.slice(), daily: fixed ? fixed.daily : '', wrong: new Array(81).fill(false),
     mistakes: 0, hints: 0, cells: 0, total: puzzle.filter((v) => !v).length,
     status: 'playing', startedAt: Date.now(), endedAt: 0, result: null, updated: Date.now(),
   };
   const prev = solos.get(nick);
   if (prev && prev.status === 'playing') streakBump(nick, 'solo', false); // 진행 중이던 판을 버리고 새로 시작하면 연승이 끊겨요
   solos.set(nick, g); unpersistSolo(nick);
+  if (fixed) { const u = userOf(nick); u.dpz = { day: fixed.daily, st: 'playing' }; saveAcc(); }
   return g;
 }
 function soloView(g) {
   const fin = g.status === 'finished';
   return {
-    mode: 'solo', status: g.status, difficulty: g.difficulty, total: g.total, pausedAt: g.pausedAt || 0, streak: streakOf(g.nick).solo,
+    mode: 'solo', daily: g.daily || '', status: g.status, difficulty: g.difficulty, total: g.total, pausedAt: g.pausedAt || 0, streak: streakOf(g.nick).solo,
     startedAt: g.startedAt, endedAt: g.endedAt, now: Date.now(), startsAt: 0, you: 1, code: '',
     players: [{ idx: 1, nick: g.nick, ...cosm(g.nick), lives: LIVES - g.mistakes, score: g.cells, cells: g.cells, hints: g.hints,
       itemUsed: false, frozenUntil: 0, connected: true, rematch: false, cursor: -1 }],
@@ -973,6 +1015,7 @@ function soloFinish(g, won) {
   } else s.over++;
   streakBump(g.nick, 'solo', won);
   r.streak = streakOf(g.nick).solo;
+  if (g.daily) dpzFinish(g, won, r, time);
   g.result = r;
   saveRanks();
 }
@@ -1210,7 +1253,7 @@ const server = http.createServer(async (req, res) => {
             list.push({ code: rm.code, host: host.nick, ...cosm(host.nick), mode: rm.mode, difficulty: rm.difficulty, bet: rm.bet || 0 });
         }
         const names = [...online].sort((a, b) => a.localeCompare(b)).slice(0, 24).map((n) => ({ nick: n, ...cosm(n) }));
-        return json(res, 200, { rooms: list.slice(0, 20), online: online.size, names, solo: soloInfo(authNick) });
+        return json(res, 200, { rooms: list.slice(0, 20), online: online.size, names, solo: soloInfo(authNick), dpz: authNick ? dpzInfo(authNick) : null });
       }
       if (action.startsWith('board/')) {
         if (!authNick) return json(res, 401, { error: '로그인이 필요해요' });
@@ -1246,6 +1289,10 @@ const server = http.createServer(async (req, res) => {
       if (action === 'mystats') {
         if (!authNick) return json(res, 401, { error: '로그인이 필요해요' });
         return json(res, 200, st(authNick));
+      }
+      if (action === 'dpz/start') {
+        if (!authNick) return json(res, 401, { error: '로그인이 필요해요' });
+        try { return json(res, 200, { state: soloView(dpzStart(authNick)) }); } catch (e) { return json(res, 400, { error: e.message }); }
       }
       if (action.startsWith('solo/')) {
         if (!authNick) return json(res, 401, { error: '로그인이 필요해요' });
