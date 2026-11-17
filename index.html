@@ -543,8 +543,7 @@ html:has(#room:not(.hide)),body:has(#room:not(.hide)){overflow:hidden;overscroll
     <button id="bUndo"><span class="ic">↩️</span>실행 취소</button>
     <button id="bErase"><span class="ic">🧽</span>지우기</button>
     <button id="bNote"><span class="ic">✏️</span>메모<span class="badge off" id="noteBadge">OFF</span></button>
-    <button id="bAuto"><span class="ic">⚡</span>빠른 메모</button>
-    <button id="bClr"><span class="ic">🧹</span>메모 비우기</button>
+    <button id="bAuto"><span class="ic">⚡</span>빠른 메모<span class="badge off" id="autoBadge">OFF</span></button>
     <button id="bHint"><span class="ic">💡</span>힌트<span class="badge" id="hintBadge">3</span></button>
   </div>
   <div class="pad" id="pad"></div>
@@ -568,7 +567,7 @@ let sess = null, S = null, es = null, sel = -1, offset = 0, lastSeq = 0, busy = 
 const pend = {}; // 서버 응답 전에 먼저 화면에 보여 주는 내 입력 {칸: {v, done}}
 let moveQ = Promise.resolve();
 const enqueue = (fn) => (moveQ = moveQ.then(fn, fn)); // 입력 순서는 지키되 화면은 기다리지 않아요
-let noteMode = false, notes = new Array(81).fill(0), undo = [];
+let autoOn = false, noteMode = false, notes = new Array(81).fill(0), undo = [];
 const cells = [];
 
 /* ---------- 유틸 ---------- */
@@ -1201,7 +1200,7 @@ function openSolo(st) {
   sessionStorage.setItem('sd_solo', '1'); sessionStorage.removeItem('sd_sess');
   $('#lobby').classList.add('hide'); $('#room').classList.remove('hide'); $('#room').classList.add('solo');
   S = st; offset = S.now - Date.now(); sel = -1; firstState = false; prevStatus = null; prevCd = 0;
-  notes = new Array(81).fill(0); undo = []; noteMode = false;
+  notes = new Array(81).fill(0); undo = []; noteMode = false; autoOn = false;
   render();
 }
 let savedSolo = null;
@@ -1251,7 +1250,7 @@ function enter(code, pid) {
   $('#lobby').classList.add('hide'); $('#room').classList.remove('hide'); $('#room').classList.remove('solo');
   sessionStorage.removeItem('sd_solo');
   S = null; sel = -1; firstState = true; prevStatus = null; prevCd = 0;
-  notes = new Array(81).fill(0); undo = []; noteMode = false;
+  notes = new Array(81).fill(0); undo = []; noteMode = false; autoOn = false;
   connect();
 }
 function connect() {
@@ -1347,7 +1346,7 @@ async function undoMove() {
   if (!isRace() || S.status !== 'playing') return;
   const u = undo.pop();
   if (!u) return toast('되돌릴 내용이 없어요');
-  if (u.t === 'notes') { notes = u.prev; render(); }
+  if (u.t === 'notes') { notes = u.prev; autoOn = !!u.auto; render(); }
   else if (u.t === 'note') { notes[u.i] = u.prev; sel = u.i; render(); }
   else if (S.wrong && S.wrong[u.i]) { try { await call('erase', { i: u.i }); sel = u.i; } catch (e) { toast(e.message); } }
   else undoMove();
@@ -1366,23 +1365,18 @@ function candMask(i) {
   peers(i).forEach((k) => { const x = S.values[k]; if (x && !(S.wrong && S.wrong[k])) m &= ~(1 << x); });
   return m;
 }
-function autoNotes() {
+function autoNotes() { // 켜면 가능한 후보를 채우고 계속 정리, 끄면 메모를 비워요
   if (!isRace() || S.status !== 'playing') return;
-  undo.push({ t: 'notes', prev: notes.slice() });
-  for (let i = 0; i < 81; i++) {
-    if (S.values[i]) { notes[i] = 0; continue; }
-    if (!notes[i]) notes[i] = candMask(i);
-    else notes[i] &= candMask(i);
-  }
-  toast('⚡ 가능한 후보를 메모로 채웠어요'); render();
-}
-function clearNotes() {
-  if (!isRace() || S.status !== 'playing') return;
-  if (!notes.some((n) => n)) return toast('지울 메모가 없어요');
-  undo.push({ t: 'notes', prev: notes.slice() }); notes = new Array(81).fill(0); render();
+  undo.push({ t: 'notes', prev: notes.slice(), auto: autoOn });
+  autoOn = !autoOn;
+  if (autoOn) {
+    for (let i = 0; i < 81; i++) notes[i] = S.values[i] ? 0 : (notes[i] ? notes[i] & candMask(i) || candMask(i) : candMask(i));
+    toast('⚡ 빠른 메모 켜짐 — 후보를 채우고 자동으로 정리해요');
+  } else { notes = new Array(81).fill(0); toast('빠른 메모 꺼짐 — 메모를 비웠어요'); }
+  render();
 }
 function toggleNote() { noteMode = !noteMode; render(); }
-$('#bUndo').onclick = undoMove; $('#bErase').onclick = eraseCell; $('#bNote').onclick = toggleNote; $('#bHint').onclick = useHint; $('#bAuto').onclick = autoNotes; $('#bClr').onclick = clearNotes;
+$('#bUndo').onclick = undoMove; $('#bErase').onclick = eraseCell; $('#bNote').onclick = toggleNote; $('#bHint').onclick = useHint; $('#bAuto').onclick = autoNotes;
 
 document.addEventListener('keydown', (e) => {
   if (!S || $('#room').classList.contains('hide')) return;
@@ -1468,6 +1462,7 @@ function render() {
   const board = $('#board');
   const paused = S.mode === 'solo' && S.status === 'playing' && !!S.pausedAt;
   board.classList.toggle('dim', S.status === 'waiting' || S.status === 'countdown' || paused);
+  if (autoOn && race && S.values) for (let i = 0; i < 81; i++) { if (S.values[i]) notes[i] = 0; else if (notes[i]) notes[i] &= candMask(i); }
   const selv = sel >= 0 && S.values ? S.values[sel] : 0;
   const sr = Math.floor(sel / 9), sc = sel % 9;
   const counts = new Array(10).fill(0);
@@ -1507,9 +1502,10 @@ function render() {
   $('#pad').classList.toggle('notes', race && noteMode);
 
   $('#noteBadge').textContent = noteMode ? 'ON' : 'OFF'; $('#noteBadge').classList.toggle('off', !noteMode);
+  $('#autoBadge').textContent = autoOn ? 'ON' : 'OFF'; $('#autoBadge').classList.toggle('off', !autoOn);
   const left = 3 - me.hints;
   $('#hintBadge').textContent = left; $('#bHint').disabled = S.status !== 'playing' || left <= 0 || paused;
-  ['#bUndo', '#bErase', '#bNote', '#bAuto', '#bClr'].forEach((b) => { $(b).disabled = S.status !== 'playing' || paused; });
+  ['#bUndo', '#bErase', '#bNote', '#bAuto'].forEach((b) => { $(b).disabled = S.status !== 'playing' || paused; });
   const item = $('#item');
   item.disabled = S.status !== 'playing' || me.itemUsed;
   item.textContent = me.itemUsed ? '❄️ 동결 사용함' : '❄️ 상대 3초 동결 (1회)';
