@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>스도쿠 듀얼</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232b2620'/%3E%3Ctext x='32' y='46' font-size='40' text-anchor='middle' fill='%23f6f0e1' font-family='serif' font-weight='700'%3E9%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#f6f0e1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="스도쿠 듀얼">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700;900&display=swap">
 <script>try{var r=document.documentElement,t=localStorage.getItem('sd_theme');if(!t){var o=JSON.parse(localStorage.getItem('sd_theme_obj')||'null');t=o&&o.base}if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';r.dataset.theme=t;localStorage.removeItem('sd_theme_obj');var n=localStorage.getItem('sd_num');if(n)r.dataset.num=n}catch(e){}</script>
@@ -373,6 +380,14 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
 .lexp{border:1.5px solid var(--bd);border-radius:6px;background:var(--paper);padding:10px 12px;margin-top:10px;font-size:14px;line-height:1.6;box-shadow:2px 2px 0 var(--sh);min-height:70px}
 .lexp .good{color:#2f7d4f;font-weight:700}.lexp .no{color:var(--bad);font-weight:700}
 :root[data-theme=dark] .lexp .good{color:#8fe0a8}
+
+/* 내 기록 */
+.stsum{display:flex;gap:8px;margin-bottom:10px}.stsum div{flex:1;text-align:center;border:1.5px solid var(--bd);border-radius:6px;padding:8px 4px;background:var(--bg)}
+.stsum b{display:block;font-size:20px}.stsum span{font-size:11.5px;color:var(--mute)}
+.stgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stc{border:1.5px solid var(--bd);border-radius:6px;padding:9px 10px;background:var(--paper)}.stc.off{opacity:.5}
+.sth{display:flex;flex-direction:column;margin-bottom:5px}.sth b{font-size:15px}.sth span{font-size:11.5px;color:var(--mute)}
+.str{display:flex;justify-content:space-between;font-size:13px;padding:2px 0;border-top:1px dashed var(--line)}.str span{color:var(--mute)}
 </style>
 </head>
 <body>
@@ -503,6 +518,7 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
         <div class="set"><span>보드 숫자 크기</span><div class="sseg" id="sNum"><button data-v="s">작게</button><button data-v="m">보통</button><button data-v="l">크게</button></div></div>
         <div class="set"><span>핑 표시</span><button class="tgl" id="sPing" aria-label="핑 표시"></button></div>
         <div class="set"><span>효과음</span><button class="tgl" id="sSound" aria-label="효과음"></button></div>
+        <div class="set"><span>앱으로 설치<small id="instHint">홈 화면에 아이콘을 추가해 앱처럼 써요</small></span><button class="btn sec" id="sInstall" style="width:auto;padding:7px 14px;font-size:13px">설치</button></div>
         <div class="set"><span>빠른 메모 기본값<small>솔로에서 새 판을 시작할 때 자동으로 켜요</small></span><button class="tgl" id="sAuto" aria-label="빠른 메모 기본값"></button></div>
       </div>
       <div class="card">
@@ -722,7 +738,19 @@ const pref = {
   get(k, d) { try { const v = localStorage.getItem('sd_' + k); return v == null ? d : v; } catch { return d; } },
   set(k, v) { try { localStorage.setItem('sd_' + k, v); } catch {} },
 };
-function applyTheme(t) { document.documentElement.dataset.theme = t; pref.set('theme', t); }
+function applyTheme(t) { document.documentElement.dataset.theme = t; pref.set('theme', t); syncThemeColor(); }
+function syncThemeColor() { const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = document.documentElement.dataset.theme === 'dark' ? '#2d3b33' : '#f6f0e1'; }
+syncThemeColor();
+let instEvt = null;
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); instEvt = e; });
+window.addEventListener('appinstalled', () => { instEvt = null; toast('앱으로 설치했어요!'); });
+$('#sInstall').onclick = async () => {
+  if (matchMedia('(display-mode: standalone)').matches || navigator.standalone) return toast('이미 앱으로 실행 중이에요');
+  if (instEvt) { instEvt.prompt(); await instEvt.userChoice.catch(() => {}); instEvt = null; return; }
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  alert(ios ? '사파리 아래쪽의 공유 버튼(□↑)을 누르고 “홈 화면에 추가”를 고르세요.' : '브라우저 메뉴(⋮)에서 “앱 설치” 또는 “홈 화면에 추가”를 고르세요.');
+};
+if ('serviceWorker' in navigator) window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
 /* ---------- 설정 ---------- */
 function renderSettings() {
   const dark = document.documentElement.dataset.theme === 'dark', num = pref.get('num', 'm');
@@ -979,13 +1007,21 @@ async function loadMyStats() {
   if (!token) return;
   try {
     const u = await api('mystats'), el = $('#mystats'), names = DIFF_N;
-    let t = '<table><tr><th>솔로</th><th>완료</th><th>최단</th><th>최고점</th><th>평균</th></tr>';
+    let all = 0, over = 0;
+    DIFF_ORDER.forEach((d) => { all += u.solo[d].done; over += u.solo[d].over || 0; });
+    const rate = (dn, ov) => (dn + ov ? Math.round((dn / (dn + ov)) * 100) + '%' : '-');
+    const best = shop && shop.streak ? shop.streak.soloBest : 0;
+    let t = '<div class="stsum"><div><b>' + all + '</b><span>솔로 클리어</span></div><div><b>' + rate(all, over) + '</b><span>승률</span></div><div><b>' + best + '</b><span>최고 연승</span></div></div><div class="stgrid">';
     for (const d of DIFF_ORDER) {
-      const s = u.solo[d];
-      t += '<tr><td>' + names[d] + '</td><td>' + s.done + '</td><td>' + (s.bestTime ? mmss(s.bestTime) : '-') + '</td><td>' + (s.bestScore || '-') + '</td><td>' + (s.done ? mmss(s.totalTime / s.done) : '-') + '</td></tr>';
+      const s = u.solo[d], ov = s.over || 0;
+      t += '<div class="stc' + (s.done || ov ? '' : ' off') + '"><div class="sth"><b>' + names[d] + '</b><span>' + s.done + '판 · 승률 ' + rate(s.done, ov) + '</span></div>' +
+        '<div class="str"><span>최단</span><b>' + (s.bestTime ? mmss(s.bestTime) : '-') + '</b></div>' +
+        '<div class="str"><span>평균</span><b>' + (s.done ? mmss(s.totalTime / s.done) : '-') + '</b></div>' +
+        '<div class="str"><span>최고 점수</span><b>' + (s.bestScore || '-') + '</b></div></div>';
     }
+    t += '</div>';
     const wl = (r) => { const n = r.wins + r.losses; return r.wins + '승 ' + r.losses + '패' + (n ? ' (' + Math.round((r.wins / n) * 100) + '%)' : ''); };
-    el.innerHTML = t + '</table><div style="margin-top:10px;font-size:14px">레이스 ' + wl(u.race) + ' · 칸 차지 ' + wl(u.territory) + '</div>';
+    el.innerHTML = t + '<div style="margin-top:10px;font-size:14px">⚔️ 레이스 ' + wl(u.race) + ' · 칸 차지 ' + wl(u.territory) + '</div>';
   } catch {}
 }
 document.querySelectorAll('input[name=m]').forEach((r) => r.addEventListener('change', () => {

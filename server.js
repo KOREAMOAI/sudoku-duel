@@ -1162,6 +1162,14 @@ function lookup(code, pid) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   try {
+    const STATIC = { '/manifest.webmanifest': 'application/manifest+json', '/sw.js': 'text/javascript; charset=utf-8', '/icon-192.png': 'image/png', '/icon-512.png': 'image/png', '/icon-maskable-512.png': 'image/png', '/apple-touch-icon.png': 'image/png' };
+    if (req.method === 'GET' && hasOwn(STATIC, url.pathname)) {
+      try {
+        const body = fs.readFileSync(path.join(__dirname, 'public', url.pathname.slice(1)));
+        res.writeHead(200, { 'Content-Type': STATIC[url.pathname], 'Cache-Control': url.pathname === '/sw.js' ? 'no-cache' : 'public, max-age=86400' });
+        return res.end(body);
+      } catch { res.writeHead(404); return res.end(); }
+    }
     if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       return res.end(fs.readFileSync(path.join(__dirname, 'index.html')));
