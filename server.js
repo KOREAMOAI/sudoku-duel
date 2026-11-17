@@ -334,7 +334,7 @@ function shopState(nick) {
   for (const k of Object.keys(SHOP)) catalog[k] = Object.entries(SHOP[k]).map(([id, it]) => ({ id, ...it, owned: ownedItem(e, k, id) }));
   catalog.title = catalog.title.concat(e.owned.title.filter((id) => seasonTitle(id)).map((id) => ({ id, ...seasonTitle(id), owned: true })));
   return {
-    coins: e.coins, eq: e.eq, cosm: cosm(nick), profile: profileOf(nick), streak: streakOf(nick), catalog, quests: questView(nick), notes: e.notes || [], admin: isAdminNick(nick),
+    coins: e.coins, eq: e.eq, learned: learnedOf(nick), cosm: cosm(nick), profile: profileOf(nick), streak: streakOf(nick), catalog, quests: questView(nick), notes: e.notes || [], admin: isAdminNick(nick),
     daily: { canClaim, reward: dailyReward(nextDay), day: nextDay },
     soloToday: e.daily.soloDate === day ? e.daily.soloEarned : 0, soloCap: SOLO_DAILY_CAP,
   };
@@ -913,6 +913,28 @@ function soloScore(g, sec) {
   const c = SOLO_CFG[g.difficulty];
   return Math.max(0, c.base + Math.max(0, c.par - sec) * c.k - g.hints * 150 - g.mistakes * 200);
 }
+/* ---------- 풀이 배우기 (튜토리얼) ---------- */
+const LESSON_REWARD = { rules: 10, hsingle: 20, nsingle: 20, pointing: 30, claiming: 30, nsub: 40, hsub: 40, xwing: 50, swordfish: 50, turbot: 50, wing: 50 };
+const learnServed = new Map(); // nick → {lesson: 받은 예제 수} (보상 조건 확인용, 메모리만)
+async function lessonExampleAsync(lesson) { // 판 하나 만드는 시도마다 다른 요청이 끼어들 수 있게 양보해요
+  const t0 = Date.now();
+  while (Date.now() - t0 < 6000) {
+    const x = logic.findScenario(lesson); if (x) return x;
+    await new Promise((r) => setImmediate(r));
+  }
+  return null;
+}
+const learnedOf = (nick) => { const u = userOf(nick); return (u && Array.isArray(u.learned)) ? u.learned : []; };
+function learnDone(nick, lesson) {
+  if (!hasOwn(LESSON_REWARD, lesson)) throw new Error('없는 레슨이에요');
+  const u = userOf(nick); u.learned = learnedOf(nick);
+  if (u.learned.includes(lesson)) return 0;
+  const seen = (learnServed.get(nick) || {})[lesson] || 0;
+  if (lesson !== 'rules' && seen < 2) throw new Error('예제와 연습을 먼저 해 주세요');
+  u.learned.push(lesson); addCoins(nick, LESSON_REWARD[lesson]); saveAcc();
+  return LESSON_REWARD[lesson];
+}
+
 /* ---------- 오늘의 퍼즐 ---------- */
 const DPZ_DIFF = 'normal', DPZ_BASE = 50, DPZ_KEEP = 4, DPZ_MISTAKE_MS = 15000, DPZ_HINT_MS = 30000;
 const dayAdd = (day, n) => new Date(Date.parse(day + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
@@ -1304,6 +1326,20 @@ const server = http.createServer(async (req, res) => {
       if (action === 'mystats') {
         if (!authNick) return json(res, 401, { error: '로그인이 필요해요' });
         return json(res, 200, st(authNick));
+      }
+      if (action === 'learn/ex' || action === 'learn/done') {
+        if (!authNick) return json(res, 401, { error: '로그인이 필요해요' });
+        const lesson = String(body.lesson || '');
+        try {
+          if (action === 'learn/done') { const claimed = learnDone(authNick, lesson); return json(res, 200, { ...shopState(authNick), claimed }); }
+          if (!logic.LESSON_TECH[lesson]) throw new Error('없는 레슨이에요');
+          const x = await lessonExampleAsync(lesson);
+          if (!x) throw new Error('예제를 만들지 못했어요. 다시 시도해 주세요');
+          const m = learnServed.get(authNick) || {}; m[lesson] = (m[lesson] || 0) + 1; learnServed.set(authNick, m);
+          const st = x.step;
+          return json(res, 200, { values: x.values, cands: x.cands, puzzle: x.puzzle,
+            step: { tech: st.tech, name: st.name || logic.TECH[st.tech].name, i: st.i ?? -1, v: st.v || 0, unit: st.unit ?? -1, area: st.area || [], cells: st.cells || [], elims: st.elims || [], text: st.text || '' } });
+        } catch (e) { return json(res, 400, { error: e.message }); }
       }
       if (action === 'dpz/start') {
         if (!authNick) return json(res, 401, { error: '로그인이 필요해요' });

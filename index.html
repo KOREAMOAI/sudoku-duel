@@ -348,6 +348,31 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
 .c.hpat{background:#cfe0f5}:root[data-theme=dark] .c.hpat{background:#2f4a63}
 .c.helim{background:#f5d5cf}:root[data-theme=dark] .c.helim{background:#5a3a36}
 #room:has(#hintBox:not(.hide)) .pad{display:none}
+
+/* 풀이 배우기 */
+.lrow{display:flex;align-items:center;gap:10px;width:100%;border:1.5px solid var(--bd);border-radius:6px;background:var(--paper);color:var(--ink);padding:10px 12px;margin-bottom:8px;text-align:left;box-shadow:2px 2px 0 var(--sh)}
+.lrow .n{flex:none;width:28px;height:28px;border-radius:50%;border:1.5px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.lrow.done .n{background:var(--ink);color:var(--paper)}
+.lrow .t{flex:1;min-width:0;font-size:14.5px;font-weight:700}.lrow .t small{display:block;font-weight:400;font-size:11.5px;color:var(--mute);margin-top:1px}
+.lrow .rw{font-size:12px;color:var(--mute);white-space:nowrap}
+.lgrp{font-weight:800;margin:14px 2px 6px;font-size:14px}
+.lesson{position:fixed;inset:0;z-index:40;background:var(--bg);overflow-y:auto;padding:14px 14px calc(20px + env(safe-area-inset-bottom))}
+.lesson>*{max-width:520px;margin-left:auto;margin-right:auto}
+.lhd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.lhd b{font-size:17px}
+.ltabs{display:flex;border:1.5px solid var(--bd);border-radius:6px;overflow:hidden;font-size:12.5px}
+.ltabs span{flex:1;text-align:center;padding:7px 2px;border-right:1.5px solid var(--bd);color:var(--mute)}.ltabs span:last-child{border-right:0}
+.ltabs span.on{background:var(--ink);color:var(--paper);font-weight:700}.ltabs span.ok{color:var(--ink)}
+.lbody{margin-top:10px}
+.lboard{width:min(100%,calc(100dvh - 330px));min-width:260px;margin:0 auto}
+.lboard .c{font-size:calc(clamp(16px,5.4vw,28px)*var(--ns,1))}
+.lboard .c.hit{cursor:pointer}
+.nt span.x{color:var(--bad);text-decoration:line-through;font-weight:900}
+.nt span.k{color:var(--user);font-weight:900}
+.c.tgt{background:var(--sel)!important}
+.lsteps{display:flex;gap:5px;margin-top:10px}.lsteps i{flex:1;height:5px;border-radius:3px;background:var(--edge)}.lsteps i.on{background:var(--ink)}
+.lexp{border:1.5px solid var(--bd);border-radius:6px;background:var(--paper);padding:10px 12px;margin-top:10px;font-size:14px;line-height:1.6;box-shadow:2px 2px 0 var(--sh);min-height:70px}
+.lexp .good{color:#2f7d4f;font-weight:700}.lexp .no{color:var(--bad);font-weight:700}
+:root[data-theme=dark] .lexp .good{color:#8fe0a8}
 </style>
 </head>
 <body>
@@ -384,6 +409,7 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
       </div>
       <div class="card hide" id="dailyPz"></div>
 
+      <button class="menu" id="openLearn"><span>🎓 풀이 배우기</span><span class="cap" style="margin:0" id="learnCnt">기법 레슨 ›</span></button>
       <button class="newsolo" id="newSolo"><span>▶ 솔로 새 게임</span><small>난이도를 골라 혼자 풀어요 · 클리어하면 코인!</small></button>
 
       <div class="card" id="questCard">
@@ -451,6 +477,15 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
     </section>
 
     <!-- 내 정보 탭 -->
+    <section class="tabp" data-tab="learn">
+      <button class="back" id="learnBack">‹ 홈</button>
+      <div class="card">
+        <div class="ct" style="font-size:18px">🎓 풀이 배우기 <span class="cnt" id="learnProg"></span></div>
+        <div class="cap" style="margin:0">예제를 보고, 같이 해 보고, 혼자 찾아보는 3단계 레슨이에요. 연습 판은 실제 퍼즐에서 매번 새로 나와요. 레슨을 처음 끝내면 코인을 받아요.</div>
+      </div>
+      <div id="learnList"></div>
+    </section>
+
     <section class="tabp" data-tab="me">
       <div class="card">
         <div class="ct">🪪 내 프로필</div>
@@ -537,6 +572,18 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
       <div id="mebar" class="mebar hide"></div>
     </div>
   </section>
+
+  <!-- 레슨 화면 -->
+  <div id="lesson" class="lesson hide">
+    <div class="lhd"><button class="back" id="lsBack" style="padding:0">‹ 목록</button><b id="lsTitle"></b><span class="cap" style="margin:0" id="lsPos"></span></div>
+    <div class="ltabs" id="lsTabs"><span data-s="0">① 예제 보기</span><span data-s="1">② 같이 하기</span><span data-s="2">③ 혼자 하기</span></div>
+    <div class="lbody">
+      <div class="board lboard" id="lsBoard"></div>
+      <div class="lsteps" id="lsSteps"></div>
+      <div class="lexp" id="lsExp"></div>
+      <div class="row" style="margin-top:10px"><button class="btn gray" id="lsPrev" style="flex:1">‹ 이전</button><button class="btn" id="lsNext" style="flex:2">다음 ›</button></div>
+    </div>
+  </div>
 
   <!-- 난이도 선택 시트 -->
   <div id="dsheet" class="sheet hide">
@@ -722,7 +769,7 @@ function fx() { // 승리 연출: 기본 색종이
 
 /* ---------- 코인 / 상점 ---------- */
 function applyShop(s) {
-  shop = s; $('#coins').textContent = s.coins; renderSettings();
+  shop = s; $('#coins').textContent = s.coins; renderSettings(); updateLearnCnt();
   setName($('#who'), user, s.cosm.color, s.cosm.title);
   const d = s.daily;
   $('#dailyBtn').classList.toggle('hide', !d.canClaim);
@@ -1185,9 +1232,9 @@ let curTab = 'play';
 function setTab(t) {
   curTab = t;
   document.querySelectorAll('.tabp').forEach((e) => e.classList.toggle('on', e.dataset.tab === t));
-  document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.tab === (t === 'admin' || t === 'board' ? 'me' : t)));
+  document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.tab === (t === 'admin' || t === 'board' ? 'me' : t === 'learn' ? 'play' : t)));
   window.scrollTo(0, 0);
-  if (t === 'rank') loadRank(); else if (t === 'admin') { if (adminKey) adminLoad().catch(() => {}); } else if (t === 'me') { loadMyStats(); loadShop(); renderSettings(); } else if (t === 'shop') loadShop(); else if (t === 'board') loadBoard(); else pollLobby();
+  if (t === 'rank') loadRank(); else if (t === 'admin') { if (adminKey) adminLoad().catch(() => {}); } else if (t === 'me') { loadMyStats(); loadShop(); renderSettings(); } else if (t === 'shop') loadShop(); else if (t === 'board') loadBoard(); else if (t === 'learn') renderLearnList(); else pollLobby();
 }
 document.querySelectorAll('#nav button').forEach((b) => b.addEventListener('click', () => setTab(b.dataset.tab)));
 $('#openBoard').onclick = () => setTab('board'); $('#boardBack').onclick = () => setTab('me');
@@ -1241,6 +1288,175 @@ async function startSolo(diff) {
   if (savedSolo && !confirm('저장된 ' + DIFF_N[savedSolo.difficulty] + ' 판(' + savedSolo.cells + '/' + savedSolo.total + '칸)이 사라져요.\n새 판을 시작할까요?')) return;
   const r = await api('solo/start', { difficulty: diff }); savedSolo = null; openSolo(r.state);
 }
+/* ---------- 풀이 배우기 ---------- */
+const LESSONS = [
+  { g: '시작하기', id: 'rules', name: '규칙과 조작법', sub: '메모 · 빠른 메모 · 힌트', rw: 10 },
+  { g: '초보자 · 초급', id: 'hsingle', name: '히든 싱글', en: 'Hidden Single', sub: '한 줄·박스에서 그 숫자가 갈 곳이 하나뿐', rw: 20,
+    intro: '한 행·열·박스 안에서 어떤 숫자가 들어갈 수 있는 칸이 딱 한 곳뿐이면, 그 칸이 정답이에요. 그 칸에 다른 후보가 여러 개 있어도 상관없어요.', ask: '숫자를 넣을 수 있는 칸을 찾아 눌러 보세요' },
+  { g: '초보자 · 초급', id: 'nsingle', name: '네이키드 싱글', en: 'Naked Single', sub: '한 칸에 들어갈 숫자가 하나뿐', rw: 20,
+    intro: '어떤 칸의 같은 행·열·박스에 이미 다른 숫자 8개가 모두 있으면, 남은 한 숫자만 들어갈 수 있어요. 메모(후보)를 다 적어 두면 후보가 하나뿐인 칸으로 보여요.', ask: '후보가 하나뿐인 칸을 찾아 눌러 보세요' },
+  { g: '중급', id: 'pointing', name: '포인팅', en: 'Pointing', sub: '박스 안의 후보가 한 줄에 몰림', rw: 30,
+    intro: '한 박스 안에서 어떤 숫자의 후보가 한 줄(행이나 열)에만 있으면, 그 숫자는 그 줄의 이 박스 부분에 들어가요. 그래서 같은 줄의 다른 박스 칸에서는 그 숫자를 지울 수 있어요.', ask: '포인팅으로 후보를 지울 수 있는 칸을 눌러 보세요' },
+  { g: '중급', id: 'claiming', name: '박스-라인 리덕션', en: 'Box-Line Reduction', sub: '줄의 후보가 한 박스에 몰림', rw: 30,
+    intro: '한 줄(행이나 열)에서 어떤 숫자의 후보가 한 박스 안에만 있으면, 그 숫자는 그 박스의 이 줄에 들어가요. 그래서 그 박스의 다른 칸에서는 그 숫자를 지울 수 있어요.', ask: '후보를 지울 수 있는 칸을 눌러 보세요' },
+  { g: '고급', id: 'nsub', name: '네이키드 페어·트리플', en: 'Naked Pair/Triple', sub: '두 칸에 같은 두 숫자', rw: 40,
+    intro: '한 줄·박스 안에서 두 칸의 후보가 똑같이 두 숫자뿐이면(예: 3·7), 그 두 숫자는 두 칸이 나눠 가져요. 그래서 같은 줄·박스의 다른 칸에서 두 숫자를 지울 수 있어요. 세 칸에 세 숫자도 마찬가지예요.', ask: '후보를 지울 수 있는 칸을 눌러 보세요' },
+  { g: '고급', id: 'hsub', name: '히든 페어·트리플', en: 'Hidden Pair/Triple', sub: '두 숫자가 갈 곳이 같은 두 칸뿐', rw: 40,
+    intro: '한 줄·박스에서 두 숫자가 들어갈 수 있는 칸이 똑같은 두 칸뿐이면, 그 두 칸은 이 두 숫자 차지예요. 그래서 그 두 칸의 나머지 후보는 지울 수 있어요.', ask: '후보를 지울 수 있는 칸을 눌러 보세요' },
+  { g: '전문가', id: 'xwing', name: 'X-윙', en: 'X-Wing', sub: '두 줄의 후보가 사각형을 이룸', rw: 50,
+    intro: '두 행에서 어떤 숫자가 각각 같은 두 열에만 들어갈 수 있으면, 네 칸이 사각형을 이뤄요. 어느 쪽이든 그 두 열에는 이 숫자가 들어가므로, 두 열의 다른 칸에서 지울 수 있어요. 행과 열을 바꿔도 같아요.', ask: 'X-윙으로 후보를 지울 수 있는 칸을 눌러 보세요' },
+  { g: '전문가', id: 'turbot', name: '스카이스크래퍼·카이트', en: 'Skyscraper / 2-String Kite', sub: '이어진 두 강한 연결', rw: 50,
+    intro: '어떤 숫자가 두 칸에만 들어갈 수 있는 줄(강한 연결) 두 개가 한쪽 끝끼리 서로 보고 있으면, 반대쪽 두 끝 중 하나는 반드시 그 숫자예요. 그래서 두 끝을 모두 보는 칸에서 지울 수 있어요.', ask: '후보를 지울 수 있는 칸을 눌러 보세요' },
+  { g: '전문가', id: 'wing', name: 'XY-윙 · XYZ-윙', en: 'XY-Wing / XYZ-Wing', sub: '축 하나와 날개 두 개', rw: 50,
+    intro: '후보가 X·Y 두 개인 칸(축)이 X·Z 칸과 Y·Z 칸(날개)을 보고 있으면, 축이 무엇이든 두 날개 중 하나는 Z가 돼요. 그래서 두 날개를 모두 보는 칸에서 Z를 지울 수 있어요. XYZ-윙은 축의 후보가 X·Y·Z 세 개인 경우예요.', ask: '후보를 지울 수 있는 칸을 눌러 보세요' },
+  { g: '전문가', id: 'swordfish', name: '스워드피시', en: 'Swordfish', sub: 'X-윙을 세 줄로', rw: 50,
+    intro: 'X-윙을 세 줄로 넓힌 기법이에요. 세 행에서 어떤 숫자의 후보가 모두 같은 세 열 안에만 있으면, 그 세 열의 다른 칸에서 이 숫자를 지울 수 있어요.', ask: '스워드피시로 후보를 지울 수 있는 칸을 눌러 보세요' },
+];
+const RULES = [
+  '스도쿠는 9×9 판의 모든 행, 모든 열, 3×3 박스 9개에 1부터 9까지 숫자가 한 번씩 들어가게 채우는 퍼즐이에요.',
+  '빈칸을 누르고 아래 숫자를 누르면 입력돼요. 틀리면 실수 +1, 실수 3번이면 게임이 끝나요. 채워진 숫자를 누르면 같은 숫자가 판 전체에서 강조돼요.',
+  '✏️ 메모를 켜고 숫자를 누르면 칸에 작은 후보 숫자를 적어요. 같은 숫자를 누르면 메모 속 숫자도 함께 강조돼요.',
+  '⚡ 빠른 메모(솔로 전용)를 켜면 모든 빈칸에 가능한 후보가 채워지고, 숫자를 넣을 때마다 자동으로 정리돼요. 대결에서는 쓸 수 없어요.',
+  '💡 힌트는 판마다 3번이에요. 솔로에서는 숫자를 채우면서 어떤 기법으로 찾았는지 설명해 줘요. 막히면 힌트로 기법을 배우고, 여기 레슨에서 연습해 보세요.',
+  '⚔️ 대결은 두 가지예요. 레이스는 같은 퍼즐을 각자 풀어 먼저 끝내면 승리, 칸 차지는 한 판을 함께 풀며 먼저 맞힌 칸을 차지해요.',
+];
+const LC = []; // 레슨 판 칸
+(function () { const b = $('#lsBoard'); for (let i = 0; i < 81; i++) { const d = document.createElement('div'); d.onclick = () => lsTap(i); b.appendChild(d); LC.push(d); } })();
+let LS = null; // {lesson, stage(0~2), sub(예제 단계), ex, done, solved, wrong, hintOn}
+function renderLearnList() {
+  const done = new Set((shop && shop.learned) || []), box = $('#learnList'); box.innerHTML = '';
+  $('#learnProg').textContent = done.size + ' / ' + LESSONS.length + ' 완료';
+  let g = '';
+  LESSONS.forEach((l, k) => {
+    if (l.g !== g) { g = l.g; const h = document.createElement('div'); h.className = 'lgrp'; h.textContent = g; box.appendChild(h); }
+    const b = document.createElement('button'); b.className = 'lrow' + (done.has(l.id) ? ' done' : '');
+    b.innerHTML = '<span class="n">' + (done.has(l.id) ? '✓' : k + 1) + '</span><span class="t"></span><span class="rw">' + (done.has(l.id) ? '완료' : '+' + l.rw + '🪙') + '</span>';
+    b.querySelector('.t').textContent = l.name + (l.en ? ' (' + l.en + ')' : ''); const sm = document.createElement('small'); sm.textContent = l.sub; b.querySelector('.t').appendChild(sm);
+    b.onclick = () => openLesson(l.id); box.appendChild(b);
+  });
+}
+function updateLearnCnt() { const n = ((shop && shop.learned) || []).length; $('#learnCnt').textContent = n ? n + '/' + LESSONS.length + ' 완료 ›' : '기법 레슨 ›'; }
+$('#openLearn').onclick = () => setTab('learn'); $('#learnBack').onclick = () => setTab('play');
+const ROWN = (i) => Math.floor(i / 9) + 1 + '행 ' + (i % 9 + 1) + '열';
+const UNAMEC = (u) => (u < 9 ? u + 1 + '행' : u < 18 ? u - 8 + '열' : u - 17 + '번 박스');
+const josa = (w, a, b) => { const t = String(w), ch = t[t.length - 1]; if (/[0-9]/.test(ch)) return t + ('1367890'.includes(ch) ? a : b); const k = ch.charCodeAt(0) - 0xac00; return t + (k >= 0 && k < 11172 && k % 28 ? a : b); };
+async function lsLoad() {
+  LS.ex = null; LS.solved = false; LS.hintOn = false; lsRender(); $('#lsExp').textContent = '연습 판을 만드는 중…';
+  try { LS.ex = await api('learn/ex', { lesson: LS.lesson.id }); } catch (e) { $('#lsExp').textContent = e.message; return; }
+  lsRender();
+}
+function openLesson(id) {
+  const l = LESSONS.find((x) => x.id === id); if (!l) return;
+  LS = { lesson: l, stage: 0, sub: 0, ex: null };
+  $('#lesson').classList.remove('hide'); $('#lsTitle').textContent = l.name;
+  if (l.id === 'rules') { lsRender(); return; }
+  lsLoad();
+}
+function closeLesson() { $('#lesson').classList.add('hide'); LS = null; renderLearnList(); }
+$('#lsBack').onclick = closeLesson;
+document.querySelectorAll('#lsTabs span').forEach((t) => { t.onclick = () => { if (!LS || LS.lesson.id === 'rules') return; LS.stage = +t.dataset.s; LS.sub = 0; lsLoad(); }; });
+function lsStepTexts() { // 예제 보기 단계별 설명
+  const l = LS.lesson, st = LS.ex.step, v = st.v;
+  if (st.tech === 'hsingle') return [l.intro, josa(UNAMEC(st.unit), '을', '를') + ' 보세요. 이 안에서 ' + josa(v, '이', '가') + ' 들어갈 수 있는 칸(후보에 ' + josa(v, '이', '가') + ' 적힌 칸)을 찾아요.', josa(v, '이', '가') + ' 갈 수 있는 곳은 ' + ROWN(st.i) + '뿐이에요. 그래서 여기에 ' + v + '!'];
+  if (st.tech === 'nsingle') return [l.intro, ROWN(st.i) + '의 행·열·박스에 있는 숫자들을 보세요 (강조된 칸).', '1~9 중 남은 숫자는 ' + v + ' 하나뿐이에요. 그래서 ' + ROWN(st.i) + '에는 ' + v + '!'];
+  return [l.intro, '파란 칸을 보세요. ' + st.name + ' 모양이에요.', st.text.replace(/\.$/, '') + '. 빨간 줄이 그어진 후보를 지워요.'];
+}
+function lsRender() {
+  if (!LS) return;
+  const l = LS.lesson, rules = l.id === 'rules';
+  document.querySelectorAll('#lsTabs span').forEach((t) => t.classList.toggle('on', !rules && +t.dataset.s === LS.stage));
+  $('#lsTabs').classList.toggle('hide', rules); $('#lsBoard').classList.toggle('hide', rules);
+  const steps = $('#lsSteps'); steps.innerHTML = '';
+  if (rules) {
+    $('#lsPos').textContent = (LS.sub + 1) + ' / ' + RULES.length;
+    RULES.forEach((_, k) => { const i = document.createElement('i'); if (k <= LS.sub) i.className = 'on'; steps.appendChild(i); });
+    $('#lsExp').textContent = RULES[LS.sub];
+    $('#lsPrev').disabled = LS.sub === 0; $('#lsNext').textContent = LS.sub === RULES.length - 1 ? '완료' : '다음 ›'; $('#lsNext').disabled = false;
+    return;
+  }
+  $('#lsPos').textContent = ['예제', '같이', '혼자'][LS.stage];
+  const ex = LS.ex, see = LS.stage === 0;
+  const texts = ex && see ? lsStepTexts() : [];
+  if (see) texts.forEach((_, k) => { const i = document.createElement('i'); if (k <= LS.sub) i.className = 'on'; steps.appendChild(i); });
+  // 판 그리기
+  const st = ex && ex.step, elim = new Map();
+  if (st) st.elims.forEach(([i, d]) => { if (!elim.has(i)) elim.set(i, new Set()); elim.get(i).add(d); });
+  const showArea = ex && ((see && LS.sub >= 1) || LS.stage === 1 || LS.hintOn);
+  const showRes = ex && ((see && LS.sub >= 2) || LS.solved);
+  const area = new Set(showArea ? st.area : []), pat = new Set(showArea ? st.cells : []);
+  for (let i = 0; i < 81; i++) {
+    const el = LC[i]; let cls = 'c' + (i % 9 % 3 === 2 ? ' cr' : '') + (Math.floor(i / 9) % 3 === 2 ? ' rb' : '');
+    if (!ex) { el.className = cls; el.textContent = ''; continue; }
+    const v = ex.values[i];
+    if (v) { el.textContent = v; cls += ex.puzzle[i] ? ' given' : ''; }
+    else if (showRes && st.i === i && (st.tech === 'hsingle' || st.tech === 'nsingle')) { el.textContent = st.v; cls += ' tgt'; }
+    else {
+      let h = '<div class="nt">'; const m = ex.cands[i], ed = showRes ? elim.get(i) : null;
+      for (let d = 1; d <= 9; d++) h += '<span' + (ed && ed.has(d) ? ' class="x"' : showArea && st.v === d && (pat.has(i) || area.has(i)) ? ' class="k"' : '') + '>' + (m & (1 << d) ? d : '') + '</span>';
+      el.innerHTML = h + '</div>';
+    }
+    if (pat.has(i)) cls += ' hpat'; else if (showRes && elim.has(i)) cls += ' helim'; else if (area.has(i)) cls += ' harea';
+    if (showRes && st.i === i) cls += ' tgt';
+    if (!see && !v) cls += ' hit';
+    el.className = cls;
+  }
+  // 설명·버튼
+  const exp = $('#lsExp');
+  if (!ex) { $('#lsPrev').disabled = true; $('#lsNext').disabled = true; return; }
+  if (see) {
+    exp.innerHTML = '<b>' + (LS.sub + 1) + '단계.</b> '; exp.appendChild(document.createTextNode(texts[LS.sub]));
+    $('#lsPrev').disabled = LS.sub === 0; $('#lsNext').disabled = false; $('#lsNext').textContent = LS.sub === texts.length - 1 ? '같이 해 보기 ›' : '다음 ›';
+  } else {
+    const ask = l.ask + (st.v && !['hsingle', 'nsingle'].includes(st.tech) ? ' (숫자 ' + st.v + ')' : '');
+    if (LS.solved) {
+      exp.innerHTML = '<span class="good">✓ 정답!</span> '; exp.appendChild(document.createTextNode(st.text ? st.text : (st.tech === 'hsingle' ? UNAMEC(st.unit) + '에서 ' + josa(st.v, '이', '가') + ' 갈 곳은 ' + ROWN(st.i) + '뿐이에요.' : ROWN(st.i) + '에는 ' + st.v + '만 들어갈 수 있어요.')));
+      $('#lsNext').textContent = LS.stage === 1 ? '혼자 해 보기 ›' : '레슨 완료 ✓';
+    } else {
+      exp.textContent = (LS.stage === 1 ? '파란·강조된 칸을 참고해서 ' : '') + ask + '.';
+      if (LS.wrong) { const s = document.createElement('div'); s.className = 'no'; s.textContent = '거기는 아니에요. 다시 찾아보세요!'; exp.appendChild(s); }
+      $('#lsNext').textContent = LS.stage === 2 ? '힌트 보기' : '정답 보기';
+    }
+    $('#lsPrev').disabled = false; $('#lsPrev').textContent = '‹ 이전 단계'; $('#lsNext').disabled = false;
+  }
+  if (see) $('#lsPrev').textContent = '‹ 이전';
+}
+function lsTap(i) {
+  if (!LS || !LS.ex || LS.stage === 0 || LS.solved) return;
+  const st = LS.ex.step, ok = ['hsingle', 'nsingle'].includes(st.tech) ? i === st.i || lsAlsoSingle(i) : st.elims.some((e) => e[0] === i);
+  if (ok) { LS.solved = true; LS.wrong = false; SFX.mine(); if (['hsingle', 'nsingle'].includes(st.tech) && i !== st.i) { st.i = i; st.v = lsAlsoSingle(i); } }
+  else { LS.wrong = true; SFX.wrong(); LC[i].classList.add('shake'); setTimeout(() => LC[i].classList.remove('shake'), 350); }
+  lsRender();
+}
+function lsAlsoSingle(i) { // 같은 종류의 다른 정답 칸도 인정
+  const ex = LS.ex, st = ex.step, m = ex.cands[i]; if (!m) return 0;
+  const ds = []; for (let d = 1; d <= 9; d++) if (m & (1 << d)) ds.push(d);
+  if (st.tech === 'nsingle') return ds.length === 1 ? ds[0] : 0;
+  const r = Math.floor(i / 9), c = i % 9, b = Math.floor(r / 3) * 3 + Math.floor(c / 3);
+  const units = [[...Array(9)].map((_, k) => r * 9 + k), [...Array(9)].map((_, k) => k * 9 + c), [...Array(9)].map((_, k) => (Math.floor(b / 3) * 3 + Math.floor(k / 3)) * 9 + (b % 3) * 3 + (k % 3))];
+  for (const d of ds) for (const [k, u] of units.entries()) if (u.filter((x) => ex.cands[x] & (1 << d)).length === 1) { st.unit = [r, 9 + c, 18 + b][k]; return d; }
+  return 0;
+}
+$('#lsPrev').onclick = () => {
+  if (!LS) return;
+  if (LS.lesson.id === 'rules' || LS.stage === 0) { if (LS.sub > 0) { LS.sub--; lsRender(); } return; }
+  LS.stage--; LS.sub = 0; lsLoad();
+};
+$('#lsNext').onclick = () => guard(async () => {
+  if (!LS) return;
+  const l = LS.lesson;
+  if (l.id === 'rules') { if (LS.sub < RULES.length - 1) { LS.sub++; lsRender(); return; } return finishLesson(); }
+  if (LS.stage === 0) { if (LS.sub < lsStepTexts().length - 1) { LS.sub++; lsRender(); } else { LS.stage = 1; LS.sub = 0; lsLoad(); } return; }
+  if (!LS.solved) { if (LS.stage === 2 && !LS.hintOn) { LS.hintOn = true; lsRender(); return; } LS.solved = true; LS.wrong = false; lsRender(); return; }
+  if (LS.stage === 1) { LS.stage = 2; LS.sub = 0; lsLoad(); return; }
+  finishLesson();
+});
+async function finishLesson() {
+  const id = LS.lesson.id;
+  try { const r = await api('learn/done', { lesson: id }); applyShop(r); toast(r.claimed ? '레슨 완료! +' + r.claimed + '🪙' : '레슨 완료!'); if (r.claimed) fx(); }
+  catch (e) { toast(e.message); }
+  closeLesson();
+}
+
 /* ---------- 오늘의 퍼즐 ---------- */
 let dpzOpen = false;
 async function startDaily() {

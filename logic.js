@@ -66,14 +66,14 @@ function findLocked(s) {
     for (const [same, line] of [[ROW, (x) => x], [COL, (x) => 9 + x]]) {
       if (w.every((k) => same(k) === same(w[0]))) {
         const e = elim(s, UNITS[line(same(w[0]))].filter((k) => BOX(k) !== b - 18).map((k) => [k, v]));
-        if (e.length) return { tech: 'pointing', v, cells: w, elims: e, text: (b - 17) + '번 박스의 ' + J(v, '은', '는') + ' ' + UNAME(line(same(w[0]))) + '에만 있어서, 그 줄의 다른 칸에서 ' + J(v, '을', '를') + ' 지울 수 있어요' };
+        if (e.length) return { tech: 'pointing', v, cells: w, elims: e, area: UNITS[b], text: (b - 17) + '번 박스의 ' + J(v, '은', '는') + ' ' + UNAME(line(same(w[0]))) + '에만 있어서, 그 줄의 다른 칸에서 ' + J(v, '을', '를') + ' 지울 수 있어요' };
       }
     }
   }
   for (let u = 0; u < 18; u++) for (let v = 1; v <= 9; v++) {
     const w = where(s, u, v); if (w.length < 2 || !w.every((k) => BOX(k) === BOX(w[0]))) continue;
     const e = elim(s, UNITS[18 + BOX(w[0])].filter((k) => !w.includes(k)).map((k) => [k, v]));
-    if (e.length) return { tech: 'claiming', v, cells: w, elims: e, text: UNAME(u) + '의 ' + J(v, '은', '는') + ' ' + (BOX(w[0]) + 1) + '번 박스 안에만 있어서, 그 박스의 다른 칸에서 ' + J(v, '을', '를') + ' 지울 수 있어요' };
+    if (e.length) return { tech: 'claiming', v, cells: w, elims: e, area: UNITS[u], text: UNAME(u) + '의 ' + J(v, '은', '는') + ' ' + (BOX(w[0]) + 1) + '번 박스 안에만 있어서, 그 박스의 다른 칸에서 ' + J(v, '을', '를') + ' 지울 수 있어요' };
   }
   return null;
 }
@@ -90,7 +90,7 @@ function findSubset(s) {
       for (const cs of combos(open, k)) {
         const m = cs.reduce((a, i) => a | s.c[i], 0); if (POP(m) !== k) continue;
         const e = elim(s, UNITS[u].filter((i) => !cs.includes(i)).flatMap((i) => DIGS(m).map((v) => [i, v])));
-        if (e.length) return { tech: k === 2 ? 'npair' : 'ntriple', cells: cs, elims: e, text: cs.map(RC).join(', ') + '에는 ' + DIGS(m).join('·') + '만 들어가요. 그래서 ' + UNAME(u) + '의 다른 칸에서 이 숫자들을 지울 수 있어요' };
+        if (e.length) return { tech: k === 2 ? 'npair' : 'ntriple', cells: cs, elims: e, area: UNITS[u], text: cs.map(RC).join(', ') + '에는 ' + DIGS(m).join('·') + '만 들어가요. 그래서 ' + UNAME(u) + '의 다른 칸에서 이 숫자들을 지울 수 있어요' };
       }
     }
     for (let u = 0; u < 27; u++) { // 히든
@@ -99,7 +99,7 @@ function findSubset(s) {
         const cs = [...new Set(dset.flatMap((v) => where(s, u, v)))]; if (cs.length !== k) continue;
         const keep = dset.reduce((a, v) => a | BIT(v), 0);
         const e = elim(s, cs.flatMap((i) => DIGS(s.c[i] & ~keep).map((v) => [i, v])));
-        if (e.length) return { tech: k === 2 ? 'hpair' : 'htriple', cells: cs, elims: e, text: UNAME(u) + '에서 ' + J(dset.join('·'), '은', '는') + ' ' + cs.map(RC).join(', ') + '에만 들어갈 수 있어요. 그래서 이 칸들의 다른 후보를 지울 수 있어요' };
+        if (e.length) return { tech: k === 2 ? 'hpair' : 'htriple', cells: cs, elims: e, area: UNITS[u], text: UNAME(u) + '에서 ' + J(dset.join('·'), '은', '는') + ' ' + cs.map(RC).join(', ') + '에만 들어갈 수 있어요. 그래서 이 칸들의 다른 후보를 지울 수 있어요' };
       }
     }
   }
@@ -113,7 +113,7 @@ function findFish(s) {
       const cover = new Set(us.flatMap((u) => where(s, u, v).map(byRow ? COL : ROW))); if (cover.size !== n) continue;
       const cells = us.flatMap((u) => where(s, u, v));
       const e = elim(s, [...cover].flatMap((x) => UNITS[byRow ? 9 + x : x]).filter((i) => !cells.includes(i)).map((i) => [i, v]));
-      if (e.length) return { tech: n === 2 ? 'xwing' : 'swordfish', v, cells, elims: e, text: us.map(UNAME).join('·') + '에서 ' + J(v, '이', '가') + ' 들어갈 자리가 ' + [...cover].map((x) => (x + 1) + (byRow ? '열' : '행')).join('·') + '에만 있어요. 그래서 그 ' + (byRow ? '열' : '행') + '들의 다른 칸에서 ' + J(v, '을', '를') + ' 지울 수 있어요' };
+      if (e.length) return { tech: n === 2 ? 'xwing' : 'swordfish', v, cells, elims: e, area: us.flatMap((u) => UNITS[u]), text: us.map(UNAME).join('·') + '에서 ' + J(v, '이', '가') + ' 들어갈 자리가 ' + [...cover].map((x) => (x + 1) + (byRow ? '열' : '행')).join('·') + '에만 있어요. 그래서 그 ' + (byRow ? '열' : '행') + '들의 다른 칸에서 ' + J(v, '을', '를') + ' 지울 수 있어요' };
     }
   }
   return null;
@@ -130,7 +130,7 @@ function findTurbot(s) { // 강한 연결 두 개가 약한 연결로 이어진 
         if (!e.length) continue;
         const rowcol = (u) => (u < 9 ? 'r' : u < 18 ? 'c' : 'b'), t = rowcol(A.u) + rowcol(B.u);
         const tech = t === 'rr' || t === 'cc' ? 'skyscraper' : t === 'rc' || t === 'cr' ? 'kite' : 'turbot';
-        return { tech, v, cells: [a1, a2, b1, b2], elims: e, text: J(v, '은', '는') + ' ' + J(UNAME(A.u), '과', '와') + ' ' + UNAME(B.u) + '에서 두 칸에만 들어가요. 두 줄이 이어져 있어서 ' + RC(a1) + ' 또는 ' + RC(b2) + ' 중 하나는 반드시 ' + J(v, '이에요', '예요') + '. 그래서 둘 다 보는 칸에서 ' + J(v, '을', '를') + ' 지울 수 있어요' };
+        return { tech, v, cells: [a1, a2, b1, b2], elims: e, area: [...UNITS[A.u], ...UNITS[B.u]], text: J(v, '은', '는') + ' ' + J(UNAME(A.u), '과', '와') + ' ' + UNAME(B.u) + '에서 두 칸에만 들어가요. 두 줄이 이어져 있어서 ' + RC(a1) + ' 또는 ' + RC(b2) + ' 중 하나는 반드시 ' + J(v, '이에요', '예요') + '. 그래서 둘 다 보는 칸에서 ' + J(v, '을', '를') + ' 지울 수 있어요' };
       }
     }
   }
@@ -267,3 +267,41 @@ function genLevel(level, tries = 60) {
   return null;
 }
 module.exports.genLevel = genLevel; module.exports.tryLevel = tryLevel; module.exports.countSolutions = countSolutions; module.exports.LEVELS = LEVELS;
+
+/* ---------- 튜토리얼 예제 ---------- */
+// 실제 퍼즐을 쉬운 기법부터 차례로 풀어 가다가, 배우려는 기법이 처음으로 꼭 필요해지는 장면을 찾아요
+const LESSON_TECH = {
+  hsingle: ['hsingle'], nsingle: ['nsingle'], pointing: ['pointing'], claiming: ['claiming'],
+  nsub: ['npair', 'ntriple'], hsub: ['hpair', 'htriple'], xwing: ['xwing'], swordfish: ['swordfish'],
+  turbot: ['skyscraper', 'kite', 'turbot'], wing: ['xywing', 'xyzwing'],
+};
+const LESSON_LEVEL = { hsingle: 'easy', nsingle: 'easy', pointing: 'normal', claiming: 'normal', nsub: 'hard', hsub: 'hard', xwing: 'expert', swordfish: 'expert', turbot: 'expert', wing: 'expert' };
+function snapshot(s) { return { values: s.g.slice(), cands: s.c.slice() }; }
+function findScenario(lesson) {
+  const want = LESSON_TECH[lesson]; if (!want) return null;
+  const r = genLevel(LESSON_LEVEL[lesson], 20); if (!r) return null;
+  const s = makeState(r.puzzle);
+  const isHidden = (i, v) => [ROW(i), 9 + COL(i), 18 + BOX(i)].some((u) => where(s, u, v).length === 1);
+  for (let n = 0; n < 400 && s.g.includes(0); n++) {
+    if (lesson === 'hsingle' || lesson === 'nsingle') { // 다른 쪽 싱글이 아닌 '순수한' 예를 고름
+      const filled = s.g.filter(Boolean).length;
+      if (filled >= 30 && filled <= 60) for (let i = 0; i < 81; i++) {
+        if (!s.c[i]) continue;
+        if (lesson === 'nsingle' && POP(s.c[i]) === 1 && !isHidden(i, DIGS(s.c[i])[0])) return { puzzle: r.puzzle, ...snapshot(s), step: { tech: 'nsingle', i, v: DIGS(s.c[i])[0], area: PEERS[i].filter((k) => s.g[k]), cells: [], elims: [] } };
+        if (lesson === 'hsingle' && POP(s.c[i]) > 2) for (const u of [18 + BOX(i), ROW(i), 9 + COL(i)]) for (const v of DIGS(s.c[i])) if (where(s, u, v).length === 1) return { puzzle: r.puzzle, ...snapshot(s), step: { tech: 'hsingle', i, v, unit: u, area: UNITS[u], cells: [], elims: [] } };
+      }
+    }
+    const one = findSingle(s, -1); if (one) { place(s, one.i, one.v); continue; }
+    let found = null; for (const [, f] of FINDERS) { const x = f(s); if (x) { found = x; break; } }
+    if (!found) return null;
+    if (want.includes(found.tech)) return { puzzle: r.puzzle, ...snapshot(s), step: { ...found, name: TECH[found.tech].name } };
+    applyElims(s, found.elims);
+  }
+  return null;
+}
+function lessonExample(lesson, budgetMs = 4000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < budgetMs) { const x = findScenario(lesson); if (x) return x; }
+  return null;
+}
+module.exports.lessonExample = lessonExample; module.exports.findScenario = findScenario; module.exports.LESSON_TECH = LESSON_TECH;
