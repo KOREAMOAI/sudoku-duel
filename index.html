@@ -304,7 +304,7 @@ html:has(#room:not(.hide)),body:has(#room:not(.hide)){overflow:hidden;overscroll
 }
 #ping{position:fixed;top:2px;left:10px;font-size:10px;font-weight:700;color:var(--mute);z-index:50;pointer-events:none;font-variant-numeric:tabular-nums;opacity:.85}
 #ping.good{color:#16a34a}#ping.mid{color:#d97706}#ping.bad{color:#dc2626}
-.c.pend{opacity:.55}
+.c.pend{color:var(--mute)}
 
 /* ===== 종이 퍼즐북 스킨 ===== */
 h1{font-weight:900}
@@ -323,7 +323,7 @@ input[type=text],input[type=password],textarea{border:1.5px solid var(--bd);bord
 .board{border-left:2.5px solid var(--ink);border-top:2.5px solid var(--ink)}
 .c.cr{border-right:2.5px solid var(--ink)}.c.rb{border-bottom:2.5px solid var(--ink)}
 .c.given{font-weight:900}
-.c.pend{opacity:.6}
+.c.pend{color:var(--mute)}
 .pad button{border:1.5px solid var(--bd);background:var(--paper);border-radius:5px;font-weight:700}
 .pad button:active{background:var(--sel)}
 .pad.notes button{color:var(--mute)}
@@ -385,7 +385,7 @@ body:has(#room:not(.hide)) .toast{top:auto;bottom:calc(70px + env(safe-area-inse
 #lsSvg .sx{stroke:#c0392b;stroke-width:.09;stroke-linecap:round}
 :root[data-theme=dark] #lsSvg .sl,:root[data-theme=dark] #lsSvg .sc{stroke:#9fd0ff}:root[data-theme=dark] #lsSvg .sx{stroke:#ff8a7a}
 .nt span.dm{opacity:.22}
-.c.fdim{opacity:.35}
+.c.fdim{color:var(--line)!important}
 .c.pop2{animation:pop .45s}
 .lstrow{display:flex;align-items:center;gap:10px;margin-top:10px}.lstrow .lsteps{flex:1;margin:0}
 .lpad{margin-top:10px}.lpad button{color:var(--ink)}
